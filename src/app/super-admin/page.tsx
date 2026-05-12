@@ -46,7 +46,9 @@ import { ShieldAlert, Loader2, Lock, ArrowRight } from 'lucide-react';
 
 import { useSearchParams } from 'next/navigation';
 
-export default function SuperAdminPage() {
+import { Suspense } from 'react';
+
+function SuperAdminContent() {
   const { profile, loading: authLoading } = useAuthStore();
   const searchParams = useSearchParams();
   const [stores, setStores] = useState<any[]>([]);
@@ -468,5 +470,17 @@ export default function SuperAdminPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function SuperAdminPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#f5f5f7] flex items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-[#0071e3]" />
+      </div>
+    }>
+      <SuperAdminContent />
+    </Suspense>
   );
 }

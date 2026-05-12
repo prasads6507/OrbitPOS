@@ -225,7 +225,7 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-white">
+      <DialogContent className="sm:max-w-[520px] p-0 max-h-[90vh] overflow-y-auto rounded-[2.5rem] border-none shadow-2xl bg-white">
         
         {/* Header Section */}
         <div className="p-10 bg-[#fbfbfd] border-b border-gray-50 relative">

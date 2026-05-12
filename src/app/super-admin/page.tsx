@@ -56,6 +56,8 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { ShieldAlert, Loader2, Lock, ArrowRight } from 'lucide-react';
 
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
 
 import { Suspense } from 'react';
 

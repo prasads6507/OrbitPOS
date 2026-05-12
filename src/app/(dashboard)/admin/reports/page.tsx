@@ -278,6 +278,7 @@ export default function ReportsPage() {
 }
 
 function ReportCard({ title, value, icon: Icon, color }: any) {
+  const colorClasses: any = {
     blue: 'bg-blue-50 text-blue-600',
     indigo: 'bg-indigo-50 text-indigo-600',
     emerald: 'bg-emerald-50 text-emerald-600',

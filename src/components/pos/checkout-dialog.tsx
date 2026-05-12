@@ -29,10 +29,12 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/useAuthStore';
 
 type CheckoutStep = 'selection' | 'cash-input' | 'card-simulation' | 'processing' | 'success' | 'failed';
 
 export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
+  const { profile } = useAuthStore();
   const { items, total, subtotal, tax, clearCart } = useCartStore();
   const [step, setStep] = useState<CheckoutStep>('selection');
   const [method, setMethod] = useState<'cash' | 'card'>('cash');

@@ -3,14 +3,19 @@
 import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 
-const supabaseAdmin = createClient<any>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-);
+const getSupabaseAdmin = () => {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set in Vercel Environment Variables');
+  }
+  return createClient<any>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+};
 
 export async function createStore(name: string, branding_logo?: string) {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from('stores')
       .insert({ name, branding_logo })
       .select()
@@ -27,7 +32,7 @@ export async function createStore(name: string, branding_logo?: string) {
 export async function deleteStore(storeId: string) {
   try {
     // 1. Fetch all users belonging to this store first
-    const { data: users } = await supabaseAdmin
+    const { data: users } = await getSupabaseAdmin()
       .from('profiles')
       .select('id')
       .eq('store_id', storeId);
@@ -35,23 +40,23 @@ export async function deleteStore(storeId: string) {
     // 2. Delete each user from Supabase Auth
     if (users && users.length > 0) {
       for (const user of users) {
-        await supabaseAdmin.auth.admin.deleteUser(user.id);
+        await getSupabaseAdmin().auth.admin.deleteUser(user.id);
       }
     }
 
     // 3. Delete all transactional data (Avoid FK violations)
-    await supabaseAdmin.from('order_items').delete().eq('store_id', storeId);
-    await supabaseAdmin.from('orders').delete().eq('store_id', storeId);
-    await supabaseAdmin.from('inventory').delete().eq('store_id', storeId);
-    await supabaseAdmin.from('products').delete().eq('store_id', storeId);
-    await supabaseAdmin.from('attendance').delete().eq('store_id', storeId);
-    await supabaseAdmin.from('payroll').delete().eq('store_id', storeId);
+    await getSupabaseAdmin().from('order_items').delete().eq('store_id', storeId);
+    await getSupabaseAdmin().from('orders').delete().eq('store_id', storeId);
+    await getSupabaseAdmin().from('inventory').delete().eq('store_id', storeId);
+    await getSupabaseAdmin().from('products').delete().eq('store_id', storeId);
+    await getSupabaseAdmin().from('attendance').delete().eq('store_id', storeId);
+    await getSupabaseAdmin().from('payroll').delete().eq('store_id', storeId);
     
     // 4. Delete profiles (This is redundant if Auth Delete triggered it, but safe)
-    await supabaseAdmin.from('profiles').delete().eq('store_id', storeId);
+    await getSupabaseAdmin().from('profiles').delete().eq('store_id', storeId);
 
     // 5. Finally, delete the store itself
-    const { error } = await supabaseAdmin
+    const { error } = await getSupabaseAdmin()
       .from('stores')
       .delete()
       .eq('id', storeId);
@@ -72,7 +77,7 @@ export async function createStoreAdmin(formData: {
 }) {
   try {
     // 1. Create user in Auth
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    const { data: authData, error: authError } = await getSupabaseAdmin().auth.admin.createUser({
       email: formData.email,
       password: formData.password || 'OrbitAdmin123!',
       email_confirm: true,
@@ -86,7 +91,7 @@ export async function createStoreAdmin(formData: {
     if (authError) throw authError;
 
     // 2. Create profile entry
-    const { error: profileError } = await supabaseAdmin
+    const { error: profileError } = await getSupabaseAdmin()
       .from('profiles')
       .insert({
         id: authData.user.id,
@@ -98,7 +103,7 @@ export async function createStoreAdmin(formData: {
       });
 
     if (profileError) {
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      await getSupabaseAdmin().auth.admin.deleteUser(authData.user.id);
       throw profileError;
     }
 
@@ -111,7 +116,7 @@ export async function createStoreAdmin(formData: {
 
 export async function getAllStores() {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from('stores')
       .select('*')
       .order('created_at', { ascending: false });

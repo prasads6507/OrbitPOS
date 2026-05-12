@@ -31,7 +31,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState({
     totalRevenue: 0,
     todaySales: 0,
-    totalProducts: 0,
+    totalLoss: 0,
     totalProfiles: 0,
   });
   const [chartData, setChartData] = useState<any[]>([]);
@@ -48,14 +48,15 @@ export default function DashboardPage() {
     if (!profile?.store_id) return;
     setLoading(true);
     try {
-      // 1. Total revenue from all completed orders
+      // 1. Total revenue (Total - Refunds, excluding Voids)
       const { data: revenueData } = await supabase
         .from('orders')
-        .select('total_amount')
+        .select('total_amount, refunded_amount')
         .eq('store_id', profile.store_id)
-        .eq('payment_status', 'completed');
+        .neq('payment_status', 'voided');
 
-      const totalRevenue = revenueData?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
+      const totalRevenue = revenueData?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0;
+      const totalLoss = revenueData?.reduce((sum, o) => sum + (o.refunded_amount || 0), 0) || 0;
 
       // 2. Selected day's sales count
       const targetDate = new Date(dateStr);
@@ -85,7 +86,7 @@ export default function DashboardPage() {
       setStats({
         totalRevenue,
         todaySales: todaySales || 0,
-        totalProducts: totalProducts || 0,
+        totalLoss,
         totalProfiles: totalProfiles || 0,
       });
 
@@ -98,13 +99,13 @@ export default function DashboardPage() {
 
         const { data: dayOrders } = await supabase
           .from('orders')
-          .select('total_amount')
+          .select('total_amount, refunded_amount')
           .eq('store_id', profile.store_id)
           .gte('created_at', dayStart)
           .lt('created_at', dayEnd)
-          .eq('payment_status', 'completed');
+          .neq('payment_status', 'voided');
 
-        const dayRevenue = dayOrders?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
+        const dayRevenue = dayOrders?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0;
         days.push({
           name: format(day, 'EEE'),
           revenue: parseFloat(dayRevenue.toFixed(2)),
@@ -115,7 +116,7 @@ export default function DashboardPage() {
       // 6. Recent orders
       const { data: orders } = await supabase
         .from('orders')
-        .select('id, total_amount, payment_method, payment_status, created_at')
+        .select('id, total_amount, refunded_amount, payment_method, payment_status, created_at')
         .eq('store_id', profile.store_id)
         .order('created_at', { ascending: false })
         .limit(5);
@@ -177,11 +178,11 @@ export default function DashboardPage() {
           color="indigo"
         />
         <StatsCard 
-          title="Active Products" 
-          value={loading ? '...' : stats.totalProducts.toString()}
-          subtitle="In catalog"
-          icon={Package}
-          color="violet"
+          title="Refunded (Loss)" 
+          value={loading ? '...' : `$${stats.totalLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          subtitle="Net returns"
+          icon={ArrowDownRight}
+          color="rose"
         />
         <StatsCard 
           title="Staff Members" 
@@ -272,8 +273,8 @@ export default function DashboardPage() {
                       </p>
                     </div>
                   </div>
-                  <span className="text-[14px] font-bold text-emerald-500">
-                    +${order.total_amount.toFixed(2)}
+                  <span className={`text-[14px] font-bold ${order.payment_status === 'voided' ? 'text-gray-400 line-through' : 'text-emerald-500'}`}>
+                    {order.payment_status === 'voided' ? '' : '+'}${ (order.total_amount - (order.refunded_amount || 0)).toFixed(2)}
                   </span>
                 </div>
               ))}
@@ -291,6 +292,7 @@ function StatsCard({ title, value, subtitle, icon: Icon, color }: any) {
     indigo: 'bg-indigo-50 text-indigo-600',
     violet: 'bg-violet-50 text-violet-600',
     emerald: 'bg-emerald-50 text-emerald-600',
+    rose: 'bg-rose-50 text-rose-600',
   };
 
   return (

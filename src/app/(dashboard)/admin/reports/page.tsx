@@ -48,6 +48,7 @@ export default function ReportsPage() {
   const [summary, setSummary] = useState({
     totalRevenue: 0,
     totalOrders: 0,
+    totalLoss: 0,
     avgOrderValue: 0,
   });
 
@@ -64,18 +65,20 @@ export default function ReportsPage() {
       // 1. Summary Stats
       const { data: orders } = await supabase
         .from('orders')
-        .select('total_amount, created_at')
+        .select('total_amount, refunded_amount, created_at, payment_status')
         .eq('store_id', profile.store_id)
-        .eq('payment_status', 'completed');
+        .neq('payment_status', 'voided');
         
       setAllOrders(orders || []);
 
-      const revenue = orders?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
+      const revenue = orders?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0;
+      const loss = orders?.reduce((sum, o) => sum + (o.refunded_amount || 0), 0) || 0;
       const count = orders?.length || 0;
 
       setSummary({
         totalRevenue: revenue,
         totalOrders: count,
+        totalLoss: loss,
         avgOrderValue: count > 0 ? revenue / count : 0,
       });
 
@@ -88,15 +91,16 @@ export default function ReportsPage() {
 
         const { data: dayOrders } = await supabase
           .from('orders')
-          .select('total_amount')
+          .select('total_amount, refunded_amount')
           .eq('store_id', profile.store_id)
           .gte('created_at', dayStart)
           .lt('created_at', nextDay)
-          .eq('payment_status', 'completed');
+          .neq('payment_status', 'voided');
 
         dailyData.push({
           date: format(day, 'MMM dd'),
-          revenue: dayOrders?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0,
+          revenue: dayOrders?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0,
+          loss: dayOrders?.reduce((sum, o) => sum + (o.refunded_amount || 0), 0) || 0,
         });
       }
       setSalesByDay(dailyData);
@@ -145,7 +149,7 @@ export default function ReportsPage() {
         key = format(date, 'yyyy');
       }
       
-      grouped[key] = (grouped[key] || 0) + (order.total_amount || 0);
+      grouped[key] = (grouped[key] || 0) + (order.total_amount || 0) - (order.refunded_amount || 0);
     });
 
     const data = Object.keys(grouped).sort((a, b) => b.localeCompare(a)).map(key => ({
@@ -198,10 +202,11 @@ export default function ReportsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <ReportCard title="Total Revenue" value={`$${summary.totalRevenue.toLocaleString()}`} icon={DollarSign} color="blue" />
-        <ReportCard title="Orders Processed" value={summary.totalOrders.toString()} icon={ShoppingBag} color="indigo" />
-        <ReportCard title="Avg. Order Value" value={`$${summary.avgOrderValue.toFixed(2)}`} icon={TrendingUp} color="emerald" />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <ReportCard title="Net Revenue" value={`$${summary.totalRevenue.toLocaleString()}`} icon={DollarSign} color="blue" />
+        <ReportCard title="Total Loss" value={`$${summary.totalLoss.toLocaleString()}`} icon={TrendingUp} color="rose" />
+        <ReportCard title="Orders" value={summary.totalOrders.toString()} icon={ShoppingBag} color="indigo" />
+        <ReportCard title="Avg Order" value={`$${summary.avgOrderValue.toFixed(2)}`} icon={DollarSign} color="emerald" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -273,10 +278,10 @@ export default function ReportsPage() {
 }
 
 function ReportCard({ title, value, icon: Icon, color }: any) {
-  const colorClasses: any = {
     blue: 'bg-blue-50 text-blue-600',
     indigo: 'bg-indigo-50 text-indigo-600',
     emerald: 'bg-emerald-50 text-emerald-600',
+    rose: 'bg-rose-50 text-rose-600',
   };
 
   return (

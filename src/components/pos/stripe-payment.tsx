@@ -21,23 +21,37 @@ function CheckoutForm({ amount, onReady, onCancel }: { amount: number, onReady: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements) return;
+    console.log('Stripe payment started...');
+    if (!stripe || !elements) {
+      console.error('Stripe.js has not yet loaded.');
+      return;
+    }
 
     setLoading(true);
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: window.location.origin + '/pos',
-      },
-      redirect: 'if_required',
-    });
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: window.location.origin + '/pos',
+        },
+        redirect: 'if_required',
+      });
 
-    if (error) {
-      toast.error(error.message);
+      if (error) {
+        console.error('Stripe confirmation error:', error);
+        toast.error(error.message);
+        setLoading(false);
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        console.log('Stripe payment succeeded!', paymentIntent.id);
+        toast.success('Payment successful!');
+        onReady(paymentIntent.id);
+      } else {
+        console.log('Stripe payment status:', paymentIntent?.status);
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Unexpected error during Stripe payment:', err);
       setLoading(false);
-    } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-      toast.success('Payment successful!');
-      onReady(paymentIntent.id);
     }
   };
 

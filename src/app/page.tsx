@@ -7,17 +7,12 @@ import { Button } from '@/components/ui/button';
 import { ShoppingCart, ShieldCheck, Users, Zap, ArrowRight, BarChart3, Globe, Smartphone, Check } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { PublicHeader } from '@/components/layout/public-header';
+import { PublicFooter } from '@/components/layout/public-footer';
 
 export default function LandingPage() {
   const { user, loading } = useAuthStore();
   const router = useRouter();
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   useEffect(() => {
     if (!loading && user) {
@@ -29,34 +24,7 @@ export default function LandingPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#ffffff] text-[#1d1d1f] selection:bg-indigo-100 font-sans">
-      {/* Apple-style Transparent Navbar */}
-      <header className={`fixed top-0 w-full z-50 transition-all duration-500 ${
-        scrolled ? 'bg-white/80 backdrop-blur-xl border-b border-gray-100 py-3' : 'bg-transparent py-6'
-      }`}>
-        <div className="container mx-auto px-8 flex items-center justify-between">
-          <Link className="flex items-center gap-2 group" href="/">
-            <div className="w-9 h-9 bg-black rounded-lg flex items-center justify-center transition-transform group-hover:scale-105">
-              <span className="text-white font-bold text-lg">O</span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-black">
-              OrbitPOS
-            </span>
-          </Link>
-          
-          <nav className="hidden md:flex items-center gap-12">
-            <Link className="text-[13px] font-medium text-black/60 hover:text-black transition-colors" href="#features">Features</Link>
-            <Link className="text-[13px] font-medium text-black/60 hover:text-black transition-colors" href="#pricing">Pricing</Link>
-            <Link className="text-[13px] font-medium text-black/60 hover:text-black transition-colors" href="/login">Sign In</Link>
-            <Button className="bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full px-6 h-9 text-[13px] font-semibold transition-all">
-              Contact Sales
-            </Button>
-          </nav>
-
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
-          </Button>
-        </div>
-      </header>
+      <PublicHeader />
 
       <main className="flex-1">
         {/* Hero Section */}
@@ -74,9 +42,11 @@ export default function LandingPage() {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-20">
-                <Button size="lg" className="bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full px-12 h-14 text-lg font-semibold transition-all hover:scale-[1.02] shadow-lg shadow-blue-500/10">
-                  Schedule a Demo
-                </Button>
+                <Link href="/contact">
+                  <Button size="lg" className="bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full px-12 h-14 text-lg font-semibold transition-all hover:scale-[1.02] shadow-lg shadow-blue-500/10">
+                    Schedule a Demo
+                  </Button>
+                </Link>
                 <Link href="/login">
                   <Button size="lg" variant="ghost" className="rounded-full px-12 h-14 text-lg font-semibold transition-all hover:bg-gray-200/50">
                     Sign In to Store
@@ -156,29 +126,16 @@ export default function LandingPage() {
           <div className="container px-8 mx-auto text-center">
             <h2 className="text-4xl md:text-6xl font-bold mb-8 tracking-tight">Ready to elevate your store?</h2>
             <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto font-medium">Join thousands of retailers who have simplified their checkout experience with OrbitPOS.</p>
-            <Button size="lg" className="bg-white text-black hover:bg-gray-100 rounded-full px-12 h-14 text-lg font-bold transition-all">
-              Contact our Sales Team
-            </Button>
+            <Link href="/contact">
+              <Button size="lg" className="bg-white text-black hover:bg-gray-100 rounded-full px-12 h-14 text-lg font-bold transition-all">
+                Contact our Sales Team
+              </Button>
+            </Link>
           </div>
         </section>
       </main>
 
-      {/* Clean Footer */}
-      <footer className="py-20 border-t border-gray-100">
-        <div className="container px-8 mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex items-center gap-4">
-            <span className="font-bold text-lg">OrbitPOS</span>
-            <span className="text-gray-300">|</span>
-            <span className="text-gray-400 text-[13px] font-medium">Copyright © 2026 OrbitPOS Inc. All rights reserved.</span>
-          </div>
-          
-          <nav className="flex gap-10 text-[13px] font-medium text-gray-500">
-            <Link className="hover:text-black transition-colors" href="#">Privacy Policy</Link>
-            <Link className="hover:text-black transition-colors" href="#">Terms of Use</Link>
-            <Link className="hover:text-black transition-colors" href="#">Support</Link>
-          </nav>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

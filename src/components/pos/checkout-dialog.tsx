@@ -65,7 +65,7 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
     setCashTendered(amount.toFixed(2));
   };
 
-  const finalizeOrder = async () => {
+  const finalizeOrder = async (stripeId?: string) => {
     if (!profile?.store_id) {
       toast.error('Store ID not found. Please log in again.');
       return;
@@ -80,7 +80,7 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
           payment_method: method,
           payment_status: 'completed',
           store_id: profile.store_id,
-          stripe_payment_intent_id: method === 'card' ? stripeIntentId : null,
+          stripe_payment_intent_id: stripeId || (method === 'card' ? stripeIntentId : null),
         })
         .select()
         .single();
@@ -220,7 +220,7 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
 
   const handleStripeSuccess = (intentId: string) => {
     setStripeIntentId(intentId);
-    finalizeOrder();
+    finalizeOrder(intentId);
   };
 
   return (

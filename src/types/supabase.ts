@@ -1,0 +1,305 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string
+          full_name: string | null
+          email: string | null
+          role: 'admin' | 'cashier' | 'employee'
+          hourly_rate: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          full_name?: string | null
+          email?: string | null
+          role?: 'admin' | 'cashier' | 'employee'
+          hourly_rate?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          full_name?: string | null
+          email?: string | null
+          role?: 'admin' | 'cashier' | 'employee'
+          hourly_rate?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      products: {
+        Row: {
+          id: string
+          name: string
+          sku: string
+          barcode: string | null
+          description: string | null
+          price: number
+          cost_price: number | null
+          stock_quantity: number
+          low_stock_threshold: number
+          category_id: string | null
+          image_url: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          sku: string
+          barcode?: string | null
+          description?: string | null
+          price: number
+          cost_price?: number | null
+          stock_quantity?: number
+          low_stock_threshold?: number
+          category_id?: string | null
+          image_url?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          sku?: string
+          barcode?: string | null
+          description?: string | null
+          price?: number
+          cost_price?: number | null
+          stock_quantity?: number
+          low_stock_threshold?: number
+          category_id?: string | null
+          image_url?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      categories: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          created_at?: string
+        }
+      }
+      orders: {
+        Row: {
+          id: string
+          order_number: number
+          customer_id: string | null
+          cashier_id: string | null
+          total_amount: number
+          tax_amount: number
+          discount_amount: number
+          payment_method: string | null
+          payment_status: string | null
+          stripe_payment_intent_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          order_number?: number
+          customer_id?: string | null
+          cashier_id?: string | null
+          total_amount: number
+          tax_amount?: number
+          discount_amount?: number
+          payment_method?: string | null
+          payment_status?: string | null
+          stripe_payment_intent_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          order_number?: number
+          customer_id?: string | null
+          cashier_id?: string | null
+          total_amount?: number
+          tax_amount?: number
+          discount_amount?: number
+          payment_method?: string | null
+          payment_status?: string | null
+          stripe_payment_intent_id?: string | null
+          created_at?: string
+        }
+      }
+      order_items: {
+        Row: {
+          id: string
+          order_id: string
+          product_id: string | null
+          quantity: number
+          unit_price: number
+          total_price: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          product_id?: string | null
+          quantity: number
+          unit_price: number
+          total_price: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          product_id?: string | null
+          quantity?: number
+          unit_price?: number
+          total_price?: number
+          created_at?: string
+        }
+      }
+      attendance: {
+        Row: {
+          id: string
+          employee_id: string
+          clock_in: string
+          clock_out: string | null
+          total_hours: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          employee_id: string
+          clock_in?: string
+          clock_out?: string | null
+          total_hours?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          employee_id?: string
+          clock_in?: string
+          clock_out?: string | null
+          total_hours?: number | null
+          created_at?: string
+        }
+      }
+      payroll: {
+        Row: {
+          id: string
+          employee_id: string
+          period_start: string
+          period_end: string
+          total_hours: number
+          gross_pay: number
+          status: string
+          paid_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          employee_id: string
+          period_start: string
+          period_end: string
+          total_hours: number
+          gross_pay: number
+          status?: string
+          paid_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          employee_id?: string
+          period_start?: string
+          period_end?: string
+          total_hours?: number
+          gross_pay?: number
+          status?: string
+          paid_at?: string | null
+          created_at?: string
+        }
+      }
+      inventory_logs: {
+        Row: {
+          id: string
+          product_id: string | null
+          change_amount: number
+          reason: string | null
+          performed_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          product_id?: string | null
+          change_amount: number
+          reason?: string | null
+          performed_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string | null
+          change_amount?: number
+          reason?: string | null
+          performed_by?: string | null
+          created_at?: string
+        }
+      }
+      settings: {
+        Row: {
+          id: number
+          store_name: string
+          store_email: string | null
+          store_phone: string | null
+          currency: string
+          tax_rate: number
+          receipt_header: string | null
+          receipt_footer: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          store_name?: string
+          store_email?: string | null
+          store_phone?: string | null
+          currency?: string
+          tax_rate?: number
+          receipt_header?: string | null
+          receipt_footer?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          store_name?: string
+          store_email?: string | null
+          store_phone?: string | null
+          currency?: string
+          tax_rate?: number
+          receipt_header?: string | null
+          receipt_footer?: string | null
+          updated_at?: string
+        }
+      }
+    }
+  }
+}

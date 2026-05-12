@@ -62,7 +62,7 @@ export default function InventoryPage() {
     const newQty = Math.max(0, product.stock_quantity + delta);
     const { error } = await supabase
       .from('products')
-      .update({ stock_quantity: newQty })
+      .update({ stock_quantity: newQty } as any)
       .eq('id', product.id);
 
     if (error) {

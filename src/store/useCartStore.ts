@@ -17,6 +17,7 @@ interface CartState {
   subtotal: number;
   tax: number;
   discount: number;
+  calculateTotals: () => void;
 }
 
 export const useCartStore = create<CartState>((set, get) => ({

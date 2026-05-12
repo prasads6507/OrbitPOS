@@ -49,11 +49,11 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       // 2. Fetch Store if exists
       let storeData = null;
-      if (profile.store_id) {
+      if ((profile as any).store_id) {
         const { data: store, error: sError } = await supabase
-          .from('stores')
+          .from('stores' as any)
           .select('*')
-          .eq('id', profile.store_id)
+          .eq('id', (profile as any).store_id)
           .maybeSingle();
         
         if (sError) {

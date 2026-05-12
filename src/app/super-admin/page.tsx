@@ -387,20 +387,17 @@ function SuperAdminContent() {
                     </TableCell>
                     <TableCell className="text-right pr-8">
                       <div className="flex items-center justify-end gap-2">
-                        <Dialog open={isAdminModalOpen && selectedStore?.id === store.id} onOpenChange={(open) => { if (!open) setIsAdminModalOpen(false); }}>
-                          <DialogTrigger 
-                            render={
-                              <Button 
-                                variant="ghost" 
-                                className="text-[#0071e3] font-bold text-[13px] hover:bg-blue-50 rounded-xl px-4"
-                                onClick={() => setSelectedStore(store)}
-                              >
-                                <UserPlus className="mr-2 h-4 w-4" />
-                                Add Admin
-                              </Button>
-                            }
-                          />
-                        </Dialog>
+                        <Button 
+                          variant="ghost" 
+                          className="text-[#0071e3] font-bold text-[13px] hover:bg-blue-50 rounded-xl px-4"
+                          onClick={() => {
+                            setSelectedStore(store);
+                            setIsAdminModalOpen(true);
+                          }}
+                        >
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          Add Admin
+                        </Button>
                         <Button 
                           variant="ghost" 
                           className="text-red-500 hover:bg-red-50 rounded-xl h-10 w-10 p-0"

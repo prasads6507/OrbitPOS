@@ -18,6 +18,7 @@ export interface Database {
           hourly_rate: number
           created_at: string
           updated_at: string
+          store_id: string | null
         }
         Insert: {
           id: string
@@ -27,6 +28,7 @@ export interface Database {
           hourly_rate?: number
           created_at?: string
           updated_at?: string
+          store_id?: string | null
         }
         Update: {
           id?: string
@@ -36,6 +38,27 @@ export interface Database {
           hourly_rate?: number
           created_at?: string
           updated_at?: string
+          store_id?: string | null
+        }
+      }
+      stores: {
+        Row: {
+          id: string
+          name: string
+          branding_logo: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          branding_logo?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          branding_logo?: string | null
+          created_at?: string
         }
       }
       products: {

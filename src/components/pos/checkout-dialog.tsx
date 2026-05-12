@@ -122,6 +122,7 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
 
       setOrderId(order.id);
       setStep('success');
+      clearCart(); // Clear cart immediately on success
       toast.success('Transaction Completed');
     } catch (err: any) {
       console.error(err);
@@ -297,7 +298,10 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
                     <div className={cn("p-4 rounded-2xl", method === 'card' ? "bg-[#0071e3] text-white" : "bg-gray-100 text-gray-400")}>
                       <CreditCard className="h-7 w-7" />
                     </div>
-                    <span className="font-bold text-[15px]">Card / Apple Pay</span>
+                    <div className="text-center">
+                      <span className="font-bold text-[15px] block">Contactless Card</span>
+                      <span className="text-[10px] font-medium opacity-60">Tap, Insert or Swipe</span>
+                    </div>
                   </Button>
                 </div>
               </div>

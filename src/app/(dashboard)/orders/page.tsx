@@ -35,6 +35,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { downloadCSV } from '@/lib/export';
+import { jsPDF } from 'jspdf';
 
 import { useAuthStore } from '@/store/useAuthStore';
 import { voidOrder, refundOrder } from '@/app/actions/orders';
@@ -158,6 +159,91 @@ export default function OrdersPage() {
       const item = selectedOrder.order_items.find((oi: any) => oi.id === id);
       return sum + (item?.unit_price || 0) * qty;
     }, 0);
+  };
+
+  const downloadOrderReceipt = (order: any) => {
+    const doc = new jsPDF();
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(24);
+    doc.text('ORBITPOS', 105, 30, { align: 'center' });
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('MODERN RETAIL EXPERIENCE', 105, 38, { align: 'center' });
+    doc.text('----------------------------------------------------', 105, 45, { align: 'center' });
+    
+    doc.setFontSize(11);
+    doc.text(`Order ID: #${order.id.slice(0, 8)}`, 20, 60);
+    doc.text(`Date: ${format(new Date(order.created_at), 'yyyy-MM-dd HH:mm')}`, 20, 68);
+    doc.text(`Payment: ${order.payment_method.toUpperCase()}`, 20, 76);
+    doc.text(`Status: ${order.payment_status.toUpperCase()}`, 20, 84);
+    
+    let y = 100;
+    doc.setFont('helvetica', 'bold');
+    doc.text('ITEM', 20, y);
+    doc.text('QTY', 120, y);
+    doc.text('PRICE', 150, y);
+    doc.text('TOTAL', 180, y, { align: 'right' });
+    
+    doc.line(20, y + 2, 190, y + 2);
+    y += 12;
+    
+    doc.setFont('helvetica', 'normal');
+    order.order_items.forEach((item: any) => {
+      doc.text(item.products?.name.substring(0, 30) || 'Product', 20, y);
+      doc.text(item.quantity.toString(), 122, y);
+      doc.text(`$${(item.unit_price || 0).toFixed(2)}`, 150, y);
+      doc.text(`$${item.total_price.toFixed(2)}`, 190, y, { align: 'right' });
+      
+      if (item.refunded_quantity > 0) {
+        y += 6;
+        doc.setFontSize(9);
+        doc.setTextColor(220, 38, 38);
+        doc.text(`(Refunded: ${item.refunded_quantity})`, 25, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+      }
+      y += 10;
+    });
+
+    y += 5;
+    doc.line(130, y, 190, y);
+    y += 10;
+    const subtotal = order.total_amount - (order.tax_amount || 0);
+    doc.text('Subtotal:', 130, y);
+    doc.text(`$${subtotal.toFixed(2)}`, 190, y, { align: 'right' });
+    y += 7;
+    doc.text('Tax:', 130, y);
+    doc.text(`$${(order.tax_amount || 0).toFixed(2)}`, 190, y, { align: 'right' });
+    
+    if (order.refunded_amount > 0) {
+      y += 7;
+      doc.setTextColor(220, 38, 38);
+      doc.text('Total Refunded:', 130, y);
+      doc.text(`-$${order.refunded_amount.toFixed(2)}`, 190, y, { align: 'right' });
+      doc.setTextColor(0, 0, 0);
+    }
+
+    y += 10;
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOTAL PAID:', 130, y);
+    const finalTotal = order.total_amount - (order.refunded_amount || 0);
+    doc.text(`$${finalTotal.toFixed(2)}`, 190, y, { align: 'right' });
+
+    if (order.refund_reason) {
+      y += 20;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'italic');
+      doc.text(`Refund Reason: ${order.refund_reason}`, 20, y);
+    }
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Thank you for shopping with OrbitPOS!', 105, y + 30, { align: 'center' });
+    
+    doc.save(`orbitpos-receipt-${order.id.slice(0, 8)}.pdf`);
+    toast.success('Invoice generated successfully');
   };
 
   return (
@@ -300,49 +386,68 @@ export default function OrdersPage() {
             <p className="text-gray-400 font-medium text-[11px] mt-1 uppercase tracking-widest">Order #{selectedOrder?.id.slice(0, 8)}</p>
           </div>
 
-          <div className="p-8 space-y-6">
-            <div className="space-y-4">
+          <div className="p-8 space-y-8">
+            <div className="space-y-5">
+              <div className="flex justify-between items-center pb-2 border-b border-gray-50">
+                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Description</span>
+                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Amount</span>
+              </div>
               {selectedOrder?.order_items?.map((item: any, idx: number) => (
-                <div key={idx} className="flex justify-between items-start">
-                  <div>
-                    <p className="font-bold text-black text-[14px]">{item.products?.name}</p>
-                    <p className="text-gray-400 text-[12px] font-medium">{item.quantity} x ${(item.total_price / item.quantity).toFixed(2)}</p>
+                <div key={idx} className="flex justify-between items-start group/item">
+                  <div className="space-y-1">
+                    <p className="font-bold text-black text-[15px] leading-none">{item.products?.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-gray-400 text-[12px] font-medium">{item.quantity} x ${(item.unit_price || item.total_price / item.quantity).toFixed(2)}</p>
+                      {item.refunded_quantity > 0 && (
+                        <Badge className="bg-rose-50 text-rose-500 border-rose-100 hover:bg-rose-50 px-1.5 py-0 text-[9px] font-bold">
+                          {item.refunded_quantity} Returned
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                  <p className="font-bold text-black">${item.total_price.toFixed(2)}</p>
+                  <p className="font-bold text-black text-[15px]">${item.total_price.toFixed(2)}</p>
                 </div>
               ))}
             </div>
 
-            <div className="pt-6 border-t border-gray-100 border-dashed space-y-3">
-              <div className="flex justify-between items-center">
+            <div className="pt-6 border-t border-gray-100 space-y-3">
+              <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500 font-medium">Subtotal</span>
-                <span className="font-bold text-gray-700">${((selectedOrder?.total_amount || 0) - (selectedOrder?.tax_amount || 0)).toFixed(2)}</span>
+                <span className="font-bold text-gray-900">${((selectedOrder?.total_amount || 0) - (selectedOrder?.tax_amount || 0)).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500 font-medium">Tax</span>
-                <span className="font-bold text-gray-700">${(selectedOrder?.tax_amount || 0).toFixed(2)}</span>
+                <span className="font-bold text-gray-900">${(selectedOrder?.tax_amount || 0).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                <span className="text-black font-black text-lg">Total</span>
-                <span className="text-emerald-600 font-black text-2xl">${selectedOrder?.total_amount?.toFixed(2)}</span>
+              
+              {selectedOrder?.refunded_amount > 0 && (
+                <div className="flex justify-between items-center text-sm py-2 px-3 bg-rose-50 rounded-xl text-rose-600">
+                  <span className="font-bold">Total Refunded</span>
+                  <span className="font-black">-${selectedOrder?.refunded_amount?.toFixed(2)}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+                <div>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Total Paid</p>
+                  <p className="text-3xl font-black text-black tracking-tighter">
+                    ${((selectedOrder?.total_amount || 0) - (selectedOrder?.refunded_amount || 0)).toFixed(2)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Method</p>
+                  <p className="font-bold text-black capitalize">{selectedOrder?.payment_method}</p>
+                </div>
               </div>
-            </div>
-            
-            <div className="bg-gray-50 rounded-2xl p-4 flex items-center justify-center gap-2">
-              <span className="text-gray-500 font-medium text-[13px]">Paid with</span>
-              <span className="font-bold text-black uppercase tracking-wider text-[13px]">{selectedOrder?.payment_method}</span>
             </div>
 
-            {(selectedOrder?.payment_status === 'refunded' || selectedOrder?.payment_status === 'partially_refunded') && (
-              <div className="bg-rose-50 rounded-2xl p-4 space-y-2 border border-rose-100">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-rose-600">
-                    <RotateCcw className="h-4 w-4" />
-                    <span className="font-bold text-[13px]">{selectedOrder?.payment_status === 'refunded' ? 'Fully Refunded' : 'Partially Refunded'}</span>
-                  </div>
-                  <span className="font-black text-rose-600">-${selectedOrder?.refunded_amount?.toFixed(2)}</span>
+            {selectedOrder?.refund_reason && (
+              <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100/50">
+                <div className="flex items-center gap-2 text-amber-700 mb-1">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="font-bold text-[13px]">Refund Note</span>
                 </div>
-                <p className="text-rose-500 text-[12px] font-medium leading-relaxed italic">
+                <p className="text-amber-600/80 text-[12px] font-medium leading-relaxed italic">
                   "{selectedOrder?.refund_reason}"
                 </p>
               </div>
@@ -355,33 +460,43 @@ export default function OrdersPage() {
               </div>
             )}
 
-            {(selectedOrder?.payment_status === 'completed' || selectedOrder?.payment_status === 'partially_refunded') && (
-              <div className="grid grid-cols-2 gap-3 pt-4">
-                <Button 
-                  variant="outline" 
-                  disabled={actionLoading}
-                  className="rounded-2xl h-12 border-gray-100 text-gray-500 font-bold hover:bg-gray-50 hover:text-black transition-all"
-                  onClick={() => handleVoidOrder(selectedOrder.id)}
-                >
-                  <Undo2 className="mr-2 h-4 w-4" />
-                  Void Order
-                </Button>
-                <Button 
-                  disabled={actionLoading}
-                  className="rounded-2xl h-12 bg-[#0071e3] hover:bg-[#0077ed] text-white font-bold transition-all"
-                  onClick={() => {
-                    // Initialize refund items with zero
-                    const initial: Record<string, number> = {};
-                    selectedOrder.order_items.forEach((oi: any) => initial[oi.id] = 0);
-                    setRefundItems(initial);
-                    setIsRefundDialogOpen(true);
-                  }}
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Refund Items
-                </Button>
-              </div>
-            )}
+            <div className="grid grid-cols-1 gap-3 pt-4">
+              <Button 
+                variant="outline" 
+                className="h-14 rounded-2xl border-gray-100 text-black font-bold shadow-sm hover:bg-gray-50"
+                onClick={() => downloadOrderReceipt(selectedOrder)}
+              >
+                <Download className="mr-2 h-5 w-5 text-gray-400" />
+                Download PDF Invoice
+              </Button>
+              
+              {(selectedOrder?.payment_status === 'completed' || selectedOrder?.payment_status === 'partially_refunded') && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    variant="ghost" 
+                    disabled={actionLoading}
+                    className="rounded-2xl h-14 font-bold text-rose-500 hover:bg-rose-50 hover:text-rose-600"
+                    onClick={() => handleVoidOrder(selectedOrder.id)}
+                  >
+                    <Undo2 className="mr-2 h-4 w-4" />
+                    Void Order
+                  </Button>
+                  <Button 
+                    disabled={actionLoading}
+                    className="rounded-2xl h-14 bg-black hover:bg-gray-800 text-white font-bold shadow-lg shadow-black/10"
+                    onClick={() => {
+                      const initial: Record<string, number> = {};
+                      selectedOrder.order_items.forEach((oi: any) => initial[oi.id] = 0);
+                      setRefundItems(initial);
+                      setIsRefundDialogOpen(true);
+                    }}
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Refund Items
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

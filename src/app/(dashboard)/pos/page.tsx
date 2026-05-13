@@ -269,7 +269,14 @@ export default function POSPage() {
         </div>
       </div>
       
-      <CheckoutDialog open={checkoutOpen} onOpenChange={setCheckoutOpen} />
+      <CheckoutDialog 
+        open={checkoutOpen} 
+        onOpenChange={setCheckoutOpen}
+        items={items}
+        subtotal={subtotal}
+        tax={tax}
+        total={total}
+      />
     </div>
 
   );

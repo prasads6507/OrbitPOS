@@ -46,9 +46,23 @@ interface ReceiptData {
   changeDue?: number;
 }
 
-export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
+export function CheckoutDialog({ 
+  open, 
+  onOpenChange,
+  items,
+  subtotal,
+  tax,
+  total
+}: { 
+  open: boolean, 
+  onOpenChange: (open: boolean) => void,
+  items: any[],
+  subtotal: number,
+  tax: number,
+  total: number
+}) {
   const { profile } = useAuthStore();
-  const { items, total, subtotal, tax, clearCart } = useCartStore();
+  const { clearCart } = useCartStore();
   const [step, setStep] = useState<CheckoutStep>('selection');
   const [method, setMethod] = useState<'cash' | 'card'>('cash');
   const [cashTendered, setCashTendered] = useState<string>('');
@@ -84,6 +98,10 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
   const finalizeOrder = async (stripeId?: string) => {
     if (!profile?.store_id) {
       toast.error('Store ID not found. Please log in again.');
+      return;
+    }
+    if (!items || items.length === 0) {
+      toast.error('Cart is empty. Cannot process order.');
       return;
     }
     setStep('processing');

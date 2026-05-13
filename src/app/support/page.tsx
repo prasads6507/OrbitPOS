@@ -18,7 +18,18 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
+import Image from 'next/image';
+
 export default function SupportPage() {
+  const mockups = [
+    '/pos-mockup-1.png',
+    '/pos-mockup-2.png',
+    '/pos-mockup-3.png',
+    '/pos-mockup-1.png',
+    '/pos-mockup-2.png',
+    '/pos-mockup-3.png',
+  ];
+
   return (
     <div className="flex flex-col min-h-screen bg-white text-[#1d1d1f] selection:bg-indigo-100 font-sans">
       <PublicHeader />
@@ -95,24 +106,44 @@ export default function SupportPage() {
             />
           </div>
 
+          {/* Product Showcase Marquee */}
+          <section className="mb-32 overflow-hidden py-20 bg-black rounded-[3rem] relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-black z-10 pointer-events-none" />
+            <div className="text-center mb-16 px-8 relative z-20">
+              <h2 className="text-3xl md:text-5xl font-black text-white mb-4 tracking-tight">Experience Excellence</h2>
+              <p className="text-gray-400 font-medium text-lg">Designed for the world's most ambitious retail brands.</p>
+            </div>
+            <div className="flex animate-marquee gap-8 px-8">
+              {mockups.map((src, i) => (
+                <div key={i} className="relative w-[400px] md:w-[600px] aspect-video shrink-0 rounded-2xl overflow-hidden border border-white/10 shadow-2xl group">
+                  <Image 
+                    src={src} 
+                    alt={`Product mockup ${i + 1}`}
+                    fill
+                    className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-100"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-8">
+                    <p className="text-white font-bold text-xl">Premium Interface Design</p>
+                    <p className="text-white/60 text-sm">Engineered for speed and elegance.</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
           {/* Contact CTA */}
-          <section className="bg-black text-white rounded-[3rem] p-12 md:p-20 text-center">
+          <section className="bg-[#f5f5f7] text-black rounded-[3rem] p-12 md:p-20 text-center border border-gray-100 shadow-sm">
             <div className="w-16 h-16 bg-[#0071e3] rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-blue-500/20">
               <MessageCircle className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight">Still need help?</h2>
-            <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto font-medium">
+            <p className="text-xl text-[#86868b] font-medium mb-10 max-w-2xl mx-auto leading-relaxed">
               Our support team is available 24/7 to help you with any questions or technical issues.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+            <div className="flex items-center justify-center">
               <Link href="/contact">
-                <Button size="lg" className="bg-white text-black hover:bg-gray-100 rounded-full px-12 h-14 text-lg font-bold transition-all">
-                   Open a Ticket
-                </Button>
-              </Link>
-              <Link href="/contact">
-                <Button size="lg" variant="outline" className="border-gray-800 text-white hover:bg-gray-900 rounded-full px-12 h-14 text-lg font-bold transition-all">
-                   Chat with Expert
+                <Button size="lg" className="bg-black text-white hover:bg-gray-800 rounded-full px-16 h-16 text-lg font-black transition-all shadow-xl shadow-black/10">
+                   Open a Support Ticket
                 </Button>
               </Link>
             </div>

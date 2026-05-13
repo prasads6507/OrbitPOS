@@ -34,6 +34,18 @@ import { useAuthStore } from '@/store/useAuthStore';
 
 type CheckoutStep = 'selection' | 'cash-input' | 'card-payment' | 'processing' | 'success' | 'failed';
 
+interface ReceiptData {
+  items: any[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  orderId: string;
+  date: string;
+  method: string;
+  cashTendered?: string;
+  changeDue?: number;
+}
+
 export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const { profile } = useAuthStore();
   const { items, total, subtotal, tax, clearCart } = useCartStore();
@@ -46,13 +58,11 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
   const [publishableKey, setPublishableKey] = useState('');
   const [stripeIntentId, setStripeIntentId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
 
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
-      if (step === 'success') {
-        clearCart();
-      }
       setTimeout(() => {
         setStep('selection');
         setCashTendered('');
@@ -60,9 +70,10 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
         setClientSecret('');
         setStripeIntentId('');
         setOrderId(null);
+        setReceiptData(null);
       }, 300);
     }
-  }, [open, step, clearCart]);
+  }, [open]);
 
   const changeDue = Math.max(0, (parseFloat(cashTendered) || 0) - total);
 
@@ -125,7 +136,22 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
       }
 
       setOrderId(order.id);
+      
+      // Capture receipt data before clearing
+      setReceiptData({
+        items: [...items],
+        subtotal,
+        tax,
+        total,
+        orderId: order.id,
+        date: new Date().toLocaleString(),
+        method,
+        cashTendered: method === 'cash' ? cashTendered : undefined,
+        changeDue: method === 'cash' ? changeDue : undefined
+      });
+
       setStep('success');
+      clearCart(); // We can safely clear now
       toast.success('Transaction Completed');
     } catch (err: any) {
       console.error(err);
@@ -159,6 +185,8 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
   };
 
   const downloadReceipt = () => {
+    if (!receiptData) return;
+    
     const doc = new jsPDF();
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(24);
@@ -170,9 +198,9 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
     doc.text('----------------------------------------------------', 105, 45, { align: 'center' });
     
     doc.setFontSize(11);
-    doc.text(`Order ID: #${orderId?.slice(0, 8)}`, 20, 60);
-    doc.text(`Date: ${new Date().toLocaleString()}`, 20, 68);
-    doc.text(`Payment: ${method.toUpperCase()}`, 20, 76);
+    doc.text(`Order ID: #${receiptData.orderId.slice(0, 8)}`, 20, 60);
+    doc.text(`Date: ${receiptData.date}`, 20, 68);
+    doc.text(`Payment: ${receiptData.method.toUpperCase()}`, 20, 76);
     
     let y = 90;
     doc.setFont('helvetica', 'bold');
@@ -185,7 +213,7 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
     y += 12;
     
     doc.setFont('helvetica', 'normal');
-    items.forEach(item => {
+    receiptData.items.forEach(item => {
       doc.text(item.name.substring(0, 30), 20, y);
       doc.text(item.quantity.toString(), 122, y);
       doc.text(`$${item.price.toFixed(2)}`, 150, y);
@@ -197,32 +225,32 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
     doc.line(130, y, 190, y);
     y += 10;
     doc.text('Subtotal:', 130, y);
-    doc.text(`$${subtotal.toFixed(2)}`, 190, y, { align: 'right' });
+    doc.text(`$${receiptData.subtotal.toFixed(2)}`, 190, y, { align: 'right' });
     y += 7;
     doc.text('Tax (8%):', 130, y);
-    doc.text(`$${tax.toFixed(2)}`, 190, y, { align: 'right' });
+    doc.text(`$${receiptData.tax.toFixed(2)}`, 190, y, { align: 'right' });
     y += 10;
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.text('TOTAL:', 130, y);
-    doc.text(`$${total.toFixed(2)}`, 190, y, { align: 'right' });
+    doc.text(`$${receiptData.total.toFixed(2)}`, 190, y, { align: 'right' });
 
-    if (method === 'cash') {
+    if (receiptData.method === 'cash') {
       y += 15;
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
       doc.text('Amount Tendered:', 130, y);
-      doc.text(`$${(parseFloat(cashTendered) || total).toFixed(2)}`, 190, y, { align: 'right' });
+      doc.text(`$${(parseFloat(receiptData.cashTendered || '0') || receiptData.total).toFixed(2)}`, 190, y, { align: 'right' });
       y += 7;
       doc.text('Change:', 130, y);
-      doc.text(`$${changeDue.toFixed(2)}`, 190, y, { align: 'right' });
+      doc.text(`$${(receiptData.changeDue || 0).toFixed(2)}`, 190, y, { align: 'right' });
     }
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'italic');
     doc.text('Thank you for shopping with OrbitPOS!', 105, y + 30, { align: 'center' });
     
-    doc.save(`orbitpos-receipt-${orderId?.slice(0, 8)}.pdf`);
+    doc.save(`orbitpos-receipt-${receiptData.orderId.slice(0, 8)}.pdf`);
   };
 
   const closeAndClear = () => {

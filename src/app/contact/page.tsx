@@ -20,12 +20,17 @@ export default function ContactPage() {
     const formData = new FormData(e.currentTarget);
     
     startTransition(async () => {
-      const result = await sendContactEmail(formData);
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        toast.success('Message sent successfully! Our sales team will reach out soon.');
-        (e.target as HTMLFormElement).reset();
+      try {
+        const result = await sendContactEmail(formData);
+        if (result.error) {
+          toast.error(result.error);
+        } else {
+          toast.success('Message sent successfully! Our sales team will reach out soon.');
+          (e.target as HTMLFormElement).reset();
+        }
+      } catch (err) {
+        console.error('Submission failed:', err);
+        toast.error('Failed to submit form. Please check your internet connection or try again later.');
       }
     });
   };

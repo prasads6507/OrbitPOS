@@ -50,15 +50,19 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
+      if (step === 'success') {
+        clearCart();
+      }
       setTimeout(() => {
         setStep('selection');
         setCashTendered('');
         setError(null);
         setClientSecret('');
         setStripeIntentId('');
+        setOrderId(null);
       }, 300);
     }
-  }, [open]);
+  }, [open, step, clearCart]);
 
   const changeDue = Math.max(0, (parseFloat(cashTendered) || 0) - total);
 
@@ -122,7 +126,6 @@ export function CheckoutDialog({ open, onOpenChange }: { open: boolean, onOpenCh
 
       setOrderId(order.id);
       setStep('success');
-      clearCart(); // Clear cart immediately on success
       toast.success('Transaction Completed');
     } catch (err: any) {
       console.error(err);

@@ -121,6 +121,39 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Product Showcase Marquee */}
+        <section className="pb-32 overflow-hidden bg-white">
+          <div className="container px-8 mx-auto mb-16 text-center">
+            <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">Experience OrbitPOS</h2>
+            <p className="text-xl text-[#86868b] font-medium">Designed for the world&apos;s most ambitious retail brands.</p>
+          </div>
+          <div className="flex animate-marquee gap-8 px-8">
+            {[
+              '/pos-mockup-1.png',
+              '/pos-mockup-2.png',
+              '/pos-mockup-3.png',
+              '/pos-mockup-1.png',
+              '/pos-mockup-2.png',
+              '/pos-mockup-3.png',
+            ].map((src, i) => (
+              <div key={i} className="relative w-[500px] md:w-[700px] aspect-video shrink-0 rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.08)] group">
+                <Image 
+                  src={src} 
+                  alt={`OrbitPOS Screenshot ${i + 1}`}
+                  fill
+                  className="object-cover transition-all duration-700 scale-105 group-hover:scale-100"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-10">
+                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
+                    <p className="text-white font-bold text-xl">Premium Interface</p>
+                    <p className="text-white/80 text-sm">Engineered for speed and elegance.</p>
+                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* Apple-style Banner */}
         <section className="py-32 bg-[#000000] text-white">
           <div className="container px-8 mx-auto text-center">

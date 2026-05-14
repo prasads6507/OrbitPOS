@@ -26,25 +26,12 @@ export function ReceiptPrinter({ receiptData }: ReceiptPrinterProps) {
   if (!receiptData) return null;
 
   return (
-    <div id="printable-receipt" className="hidden print:block p-8 bg-white text-black font-mono text-[12px] w-[80mm]">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          body * { visibility: hidden; }
-          #printable-receipt, #printable-receipt * { visibility: visible; }
-          #printable-receipt {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 80mm;
-            padding: 10mm;
-            background: white;
-          }
-          @page {
-            size: 80mm auto;
-            margin: 0;
-          }
-        }
-      `}} />
+    <div id="printable-receipt" className="hidden p-8 bg-white text-black font-mono text-[12px] w-[80mm]">
+      {/* 
+        This component is hidden from the main UI. 
+        The content is captured and printed in a dedicated popup window via handlePrint() 
+        in CheckoutDialog.tsx to ensure perfect thermal formatting.
+      */}
       <div className="space-y-4">
         <div className="text-center border-b pb-4 mb-4">
           <h1 className="text-xl font-bold uppercase">OrbitPOS</h1>

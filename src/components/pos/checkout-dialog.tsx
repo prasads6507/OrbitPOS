@@ -53,8 +53,6 @@ export function CheckoutDialog({
   items,
   subtotal,
   tax,
-  subtotal,
-  tax,
   total,
   initialMethod = 'cash'
 }: { 

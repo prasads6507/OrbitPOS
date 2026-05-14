@@ -14,7 +14,8 @@ import {
   ShieldAlert,
   Undo2,
   RotateCcw,
-  MessageSquare
+  MessageSquare,
+  Printer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -122,10 +123,30 @@ export default function OrdersPage() {
     if (receiptData && autoPrint) {
       const timer = setTimeout(() => {
         handlePrint();
+        // Clear receipt data after printing to prevent double-printing on re-renders
+        setTimeout(() => setReceiptData(null), 1000);
       }, 500);
       return () => clearTimeout(timer);
     }
   }, [receiptData, profile?.stores?.auto_print_receipt]);
+
+  const handleReprint = (order: any) => {
+    setReceiptData({
+      orderId: order.id,
+      date: format(new Date(order.created_at), 'MMM d, yyyy h:mm a'),
+      method: order.payment_method,
+      items: order.order_items.map((item: any) => ({
+        name: item.products?.name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        price: item.unit_price
+      })),
+      subtotal: order.total_amount - (order.tax_amount || 0),
+      tax: order.tax_amount || 0,
+      total: order.total_amount,
+      type: 'sale'
+    });
+  };
 
   const handleVoidOrder = async (orderId: string) => {
     if (!confirm('Are you sure you want to VOID this transaction? This will restore stock and mark the order as voided.')) return;
@@ -445,14 +466,25 @@ export default function OrdersPage() {
                       ${order.total_amount.toFixed(2)}
                     </TableCell>
                     <TableCell className="text-right pr-8">
-                      <Button 
-                        variant="ghost" 
-                        className="text-[#0071e3] font-bold text-[13px] hover:bg-blue-50 rounded-xl"
-                        onClick={() => setSelectedOrder(order)}
-                      >
-                        View Receipt
-                        <ArrowRight className="ml-1 h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="text-gray-400 hover:text-[#0071e3] hover:bg-blue-50 rounded-xl h-10 w-10"
+                          onClick={() => handleReprint(order)}
+                          title="Reprint Receipt"
+                        >
+                          <Printer className="h-5 w-5" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          className="text-[#0071e3] font-bold text-[13px] hover:bg-blue-50 rounded-xl px-4"
+                          onClick={() => setSelectedOrder(order)}
+                        >
+                          Details
+                          <ArrowRight className="ml-1 h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

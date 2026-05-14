@@ -209,6 +209,8 @@ export function CheckoutDialog({
       // Small delay to ensure the UI has rendered
       const timer = setTimeout(() => {
         handlePrint();
+        // Clear receipt data after printing to prevent double-printing
+        setTimeout(() => setReceiptData(null), 1000);
       }, 500);
       return () => clearTimeout(timer);
     }

@@ -35,6 +35,8 @@ export default function POSPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const { items, addItem, removeItem, updateQuantity, subtotal, tax, total, clearCart } = useCartStore();
   const [initialMethod, setInitialMethod] = useState<'cash' | 'card'>('cash');
   const searchInputRef = useRef<HTMLInputElement>(null);

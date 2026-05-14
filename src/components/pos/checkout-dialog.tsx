@@ -383,7 +383,7 @@ export function CheckoutDialog({
               <Button 
                 disabled={loading}
                 className="w-full h-16 rounded-2xl bg-black hover:bg-gray-800 text-white font-black text-lg shadow-xl shadow-black/10 mt-auto"
-                onClick={handleMethodContinue}
+                onClick={() => handleMethodContinue()}
               >
                 {loading ? <Loader2 className="animate-spin" /> : <>Continue to {method === 'cash' ? 'Cash' : 'Card'}<ArrowRight className="ml-2 h-5 w-5" /></>}
               </Button>

@@ -43,6 +43,7 @@ interface ReceiptData {
   orderId: string;
   date: string;
   method: string;
+  discount: number;
   cashTendered?: string;
   changeDue?: number;
 }
@@ -50,10 +51,10 @@ interface ReceiptData {
 export function CheckoutDialog({ 
   open, 
   onOpenChange,
-  items,
   subtotal,
   tax,
   total,
+  discount = 0,
   initialMethod = 'cash'
 }: { 
   open: boolean, 
@@ -62,6 +63,7 @@ export function CheckoutDialog({
   subtotal: number,
   tax: number,
   total: number,
+  discount?: number,
   initialMethod?: 'cash' | 'card'
 }) {
   const { profile } = useAuthStore();
@@ -121,6 +123,7 @@ export function CheckoutDialog({
         .insert({
           total_amount: total,
           tax_amount: tax,
+          discount_amount: discount,
           payment_method: method,
           payment_status: 'completed',
           store_id: profile.store_id,
@@ -174,6 +177,7 @@ export function CheckoutDialog({
         orderId: order.id,
         date: new Date().toLocaleString(),
         method,
+        discount,
         cashTendered: method === 'cash' ? cashTendered : undefined,
         changeDue: method === 'cash' ? changeDue : undefined
       });
@@ -278,6 +282,13 @@ export function CheckoutDialog({
     y += 7;
     doc.text('Tax (8%):', 130, y);
     doc.text(`$${receiptData.tax.toFixed(2)}`, 190, y, { align: 'right' });
+    if (receiptData.discount > 0) {
+      y += 7;
+      doc.setTextColor(220, 50, 50);
+      doc.text('Discount:', 130, y);
+      doc.text(`-$${receiptData.discount.toFixed(2)}`, 190, y, { align: 'right' });
+      doc.setTextColor(0, 0, 0);
+    }
     y += 10;
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');

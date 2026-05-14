@@ -37,7 +37,7 @@ export default function POSPage() {
   const [loading, setLoading] = useState(true);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const { items, addItem, removeItem, updateQuantity, subtotal, tax, total, clearCart } = useCartStore();
+  const { items, addItem, removeItem, updateQuantity, subtotal, tax, total, discount, setDiscount, clearCart } = useCartStore();
   const [initialMethod, setInitialMethod] = useState<'cash' | 'card'>('cash');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -177,7 +177,7 @@ export default function POSPage() {
       </div>
 
       {/* Cart / Checkout */}
-      <div className="w-full lg:w-[400px] flex flex-col h-[calc(100vh-140px)] bg-white rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.06)] border border-gray-100 overflow-hidden shrink-0 sticky top-4">
+      <div className="w-full lg:w-[400px] flex flex-col h-[calc(100vh-180px)] bg-white rounded-[3rem] shadow-[0_40px_100px_rgba(0,0,0,0.06)] border border-gray-100 overflow-hidden shrink-0 sticky top-0">
         <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-[#fbfbfd]/50">
           <div>
             <h2 className="font-black text-xl text-black tracking-tight">Current Order</h2>
@@ -239,6 +239,19 @@ export default function POSPage() {
               <span>Tax (8%)</span>
               <span className="text-black">${tax.toFixed(2)}</span>
             </div>
+            <div className="flex justify-between text-[14px] text-rose-500 font-bold">
+              <div className="flex items-center gap-2">
+                <span>Discount</span>
+                <input 
+                  type="number"
+                  placeholder="0.00"
+                  className="w-20 bg-rose-50 border-none rounded-lg px-2 py-0.5 text-[12px] focus:ring-1 focus:ring-rose-200 outline-none"
+                  value={discount || ''}
+                  onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <span>-${discount.toFixed(2)}</span>
+            </div>
           </div>
           
           <div className="pt-6 border-t border-dashed border-gray-200">
@@ -288,6 +301,7 @@ export default function POSPage() {
         subtotal={subtotal}
         tax={tax}
         total={total}
+        discount={discount}
         initialMethod={initialMethod}
       />
     </div>

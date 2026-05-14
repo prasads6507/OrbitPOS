@@ -16,7 +16,7 @@ interface CartState {
   total: number;
   subtotal: number;
   tax: number;
-  discount: number;
+  setDiscount: (amount: number) => void;
   calculateTotals: () => void;
 }
 
@@ -53,6 +53,10 @@ export const useCartStore = create<CartState>((set, get) => ({
     });
     get().calculateTotals();
   },
+  setDiscount: (amount) => {
+    set({ discount: amount });
+    get().calculateTotals();
+  },
   clearCart: () => set({ items: [], total: 0, subtotal: 0, tax: 0, discount: 0 }),
   subtotal: 0,
   tax: 0,
@@ -60,9 +64,10 @@ export const useCartStore = create<CartState>((set, get) => ({
   total: 0,
   calculateTotals: () => {
     const items = get().items;
+    const discount = get().discount;
     const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
     const tax = subtotal * 0.08; // 8% tax
-    const total = subtotal + tax;
+    const total = Math.max(0, subtotal + tax - discount);
     set({ subtotal, tax, total });
   },
 }));

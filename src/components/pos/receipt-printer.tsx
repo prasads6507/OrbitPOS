@@ -11,6 +11,7 @@ interface ReceiptPrinterProps {
     subtotal: number;
     tax: number;
     total: number;
+    discount: number;
     cashTendered?: string;
     changeDue?: number;
     type?: 'sale' | 'refund' | 'void';
@@ -90,6 +91,12 @@ export function ReceiptPrinter({ receiptData }: ReceiptPrinterProps) {
             <span>TAX:</span> 
             <span>{receiptData.type === 'refund' ? '-' : ''}${receiptData.tax.toFixed(2)}</span>
           </p>
+          {receiptData.discount > 0 && (
+            <p className="flex justify-between text-rose-600">
+              <span>DISCOUNT:</span> 
+              <span>-${receiptData.discount.toFixed(2)}</span>
+            </p>
+          )}
           <p className="flex justify-between text-lg font-bold border-t pt-2">
             <span>TOTAL:</span> 
             <span>{receiptData.type === 'refund' ? '-' : ''}${receiptData.total.toFixed(2)}</span>

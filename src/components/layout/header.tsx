@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -78,40 +79,42 @@ export function Header({ onMenuClick }: HeaderProps) {
             )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80 rounded-2xl p-2 shadow-2xl border-gray-100 animate-in zoom-in-95 duration-200">
-            <DropdownMenuLabel className="px-3 py-2 flex items-center justify-between">
-              <span className="font-black text-black">Notifications</span>
-              {lowStockItems.length > 0 && <span className="bg-red-50 text-red-500 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">{lowStockItems.length} Low Stock</span>}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-gray-50" />
-            <div className="max-h-80 overflow-y-auto">
-              {lowStockItems.length === 0 ? (
-                <div className="py-8 px-4 text-center">
-                  <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Bell className="h-6 w-6 text-gray-300" />
-                  </div>
-                  <p className="text-gray-400 font-bold text-sm">No new notifications</p>
-                  <p className="text-[11px] text-gray-300 mt-1">Everything looks good!</p>
-                </div>
-              ) : (
-                lowStockItems.map((item) => (
-                  <DropdownMenuItem 
-                    key={item.id} 
-                    className="p-3 focus:bg-[#f5f5f7] rounded-xl cursor-pointer group"
-                    onSelect={() => router.push('/admin/inventory')}
-                  >
-                    <div className="flex items-center gap-4 w-full">
-                      <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center group-hover:bg-white transition-colors">
-                        <Package className="h-5 w-5 text-amber-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-bold text-black truncate">{item.name}</p>
-                        <p className="text-[11px] font-medium text-amber-600">Only {item.stock_quantity} remaining in stock</p>
-                      </div>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="px-3 py-2 flex items-center justify-between">
+                <span className="font-black text-black">Notifications</span>
+                {lowStockItems.length > 0 && <span className="bg-red-50 text-red-500 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">{lowStockItems.length} Low Stock</span>}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-gray-50" />
+              <div className="max-h-80 overflow-y-auto">
+                {lowStockItems.length === 0 ? (
+                  <div className="py-8 px-4 text-center">
+                    <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <Bell className="h-6 w-6 text-gray-300" />
                     </div>
-                  </DropdownMenuItem>
-                ))
-              )}
-            </div>
+                    <p className="text-gray-400 font-bold text-sm">No new notifications</p>
+                    <p className="text-[11px] text-gray-300 mt-1">Everything looks good!</p>
+                  </div>
+                ) : (
+                  lowStockItems.map((item) => (
+                    <DropdownMenuItem 
+                      key={item.id} 
+                      className="p-3 focus:bg-[#f5f5f7] rounded-xl cursor-pointer group"
+                      onSelect={() => router.push('/admin/inventory')}
+                    >
+                      <div className="flex items-center gap-4 w-full">
+                        <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center group-hover:bg-white transition-colors">
+                          <Package className="h-5 w-5 text-amber-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-bold text-black truncate">{item.name}</p>
+                          <p className="text-[11px] font-medium text-amber-600">Only {item.stock_quantity} remaining in stock</p>
+                        </div>
+                      </div>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </div>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
         <div className="h-8 w-px bg-gray-100 mx-2" />

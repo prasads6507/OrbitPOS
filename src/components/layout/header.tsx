@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Bell, Search, Settings, Menu, Package } from 'lucide-react';
 
@@ -23,6 +23,7 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { profile } = useAuthStore();
+  const router = useRouter();
   const [lowStockItems, setLowStockItems] = useState<any[]>([]);
 
   useEffect(() => {
@@ -93,8 +94,12 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </div>
               ) : (
                 lowStockItems.map((item) => (
-                  <DropdownMenuItem key={item.id} className="p-3 focus:bg-[#f5f5f7] rounded-xl cursor-pointer group">
-                    <Link href="/admin/inventory" className="flex items-center gap-4 w-full">
+                  <DropdownMenuItem 
+                    key={item.id} 
+                    className="p-3 focus:bg-[#f5f5f7] rounded-xl cursor-pointer group"
+                    onSelect={() => router.push('/admin/inventory')}
+                  >
+                    <div className="flex items-center gap-4 w-full">
                       <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center group-hover:bg-white transition-colors">
                         <Package className="h-5 w-5 text-amber-500" />
                       </div>
@@ -102,7 +107,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                         <p className="text-[13px] font-bold text-black truncate">{item.name}</p>
                         <p className="text-[11px] font-medium text-amber-600">Only {item.stock_quantity} remaining in stock</p>
                       </div>
-                    </Link>
+                    </div>
                   </DropdownMenuItem>
                 ))
               )}

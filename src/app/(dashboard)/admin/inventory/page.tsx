@@ -38,16 +38,26 @@ export default function InventoryPage() {
   const [adjustAmount, setAdjustAmount] = useState(0);
 
   useEffect(() => {
-    fetchInventory();
-  }, []);
+    if (profile?.store_id) {
+      fetchInventory();
+    }
+  }, [profile]);
 
   const fetchInventory = async () => {
+    if (!profile?.store_id) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('products')
       .select('*')
+      .eq('store_id', profile.store_id)
       .order('stock_quantity', { ascending: true });
-    setProducts(data || []);
+      
+    if (error) {
+      console.error('Inventory fetch error:', error);
+      toast.error('Failed to load inventory');
+    } else {
+      setProducts(data || []);
+    }
     setLoading(false);
   };
 

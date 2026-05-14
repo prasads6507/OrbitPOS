@@ -34,7 +34,18 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { format, subDays, startOfDay } from 'date-fns';
+import { 
+  format, 
+  subDays, 
+  startOfDay, 
+  endOfDay,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear
+} from 'date-fns';
 import { downloadCSV } from '@/lib/export';
 
 import { useAuthStore } from '@/store/useAuthStore';
@@ -51,22 +62,44 @@ export default function ReportsPage() {
     totalLoss: 0,
     avgOrderValue: 0,
   });
+  const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
+  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
   useEffect(() => {
     if (profile?.store_id) {
-      fetchReportData();
+      fetchReportData(selectedDate, timeRange);
     }
-  }, [profile]);
+  }, [profile, selectedDate, timeRange]);
 
-  const fetchReportData = async () => {
+  const fetchReportData = async (dateStr: string, range: string) => {
     if (!profile?.store_id) return;
     setLoading(true);
     try {
-      // 1. Summary Stats
+      const targetDate = new Date(dateStr + 'T00:00:00');
+      let startDate: string;
+      let endDate: string;
+
+      if (range === 'daily') {
+        startDate = startOfDay(targetDate).toISOString();
+        endDate = endOfDay(targetDate).toISOString();
+      } else if (range === 'weekly') {
+        startDate = startOfWeek(targetDate).toISOString();
+        endDate = endOfWeek(targetDate).toISOString();
+      } else if (range === 'monthly') {
+        startDate = startOfMonth(targetDate).toISOString();
+        endDate = endOfMonth(targetDate).toISOString();
+      } else {
+        startDate = startOfYear(targetDate).toISOString();
+        endDate = endOfYear(targetDate).toISOString();
+      }
+
+      // 1. Summary Stats based on range
       const { data: orders } = await supabase
         .from('orders')
         .select('total_amount, refunded_amount, created_at, payment_status')
         .eq('store_id', profile.store_id)
+        .gte('created_at', startDate)
+        .lt('created_at', endDate)
         .neq('payment_status', 'voided');
         
       setAllOrders(orders || []);
@@ -82,34 +115,77 @@ export default function ReportsPage() {
         avgOrderValue: count > 0 ? revenue / count : 0,
       });
 
-      // 2. Sales by Day (Last 14 days)
+      // 2. Chart Data (Dynamic based on range)
       const dailyData = [];
-      for (let i = 13; i >= 0; i--) {
-        const day = subDays(new Date(), i);
-        const dayStart = startOfDay(day).toISOString();
-        const nextDay = startOfDay(subDays(day, -1)).toISOString();
+      if (range === 'daily' || range === 'weekly') {
+        for (let i = 6; i >= 0; i--) {
+          const day = subDays(targetDate, i);
+          const dStart = startOfDay(day).toISOString();
+          const dNext = endOfDay(day).toISOString();
 
-        const { data: dayOrders } = await supabase
-          .from('orders')
-          .select('total_amount, refunded_amount')
-          .eq('store_id', profile.store_id)
-          .gte('created_at', dayStart)
-          .lt('created_at', nextDay)
-          .neq('payment_status', 'voided');
+          const { data: dOrders } = await supabase
+            .from('orders')
+            .select('total_amount, refunded_amount')
+            .eq('store_id', profile.store_id)
+            .gte('created_at', dStart)
+            .lt('created_at', dNext)
+            .neq('payment_status', 'voided');
 
-        dailyData.push({
-          date: format(day, 'MMM dd'),
-          revenue: dayOrders?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0,
-          loss: dayOrders?.reduce((sum, o) => sum + (o.refunded_amount || 0), 0) || 0,
-        });
+          dailyData.push({
+            date: format(day, 'MMM dd'),
+            revenue: dOrders?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0,
+            loss: dOrders?.reduce((sum, o) => sum + (o.refunded_amount || 0), 0) || 0,
+          });
+        }
+      } else if (range === 'monthly') {
+        for (let i = 0; i < 4; i++) {
+          const wStart = subDays(endOfMonth(targetDate), (3 - i) * 7 + 6);
+          const wEnd = subDays(endOfMonth(targetDate), (3 - i) * 7);
+          
+          const { data: wOrders } = await supabase
+            .from('orders')
+            .select('total_amount, refunded_amount')
+            .eq('store_id', profile.store_id)
+            .gte('created_at', startOfDay(wStart).toISOString())
+            .lt('created_at', endOfDay(wEnd).toISOString())
+            .neq('payment_status', 'voided');
+
+          dailyData.push({
+            date: `Week ${i + 1}`,
+            revenue: wOrders?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0,
+            loss: wOrders?.reduce((sum, o) => sum + (o.refunded_amount || 0), 0) || 0,
+          });
+        }
+      } else {
+        for (let i = 0; i < 12; i++) {
+          const mDate = new Date(targetDate.getFullYear(), i, 1);
+          const mStart = startOfMonth(mDate).toISOString();
+          const mEnd = endOfMonth(mDate).toISOString();
+
+          const { data: mOrders } = await supabase
+            .from('orders')
+            .select('total_amount, refunded_amount')
+            .eq('store_id', profile.store_id)
+            .gte('created_at', mStart)
+            .lt('created_at', mEnd)
+            .neq('payment_status', 'voided');
+
+          dailyData.push({
+            date: format(mDate, 'MMM'),
+            revenue: mOrders?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0,
+            loss: mOrders?.reduce((sum, o) => sum + (o.refunded_amount || 0), 0) || 0,
+          });
+        }
       }
       setSalesByDay(dailyData);
 
-      // 3. Top Products
+      // 3. Top Products for this range
       const { data: items } = await supabase
         .from('order_items')
-        .select('quantity, total_price, products(name)')
-        .eq('store_id', profile.store_id);
+        .select('quantity, total_price, products(name), orders!inner(created_at)')
+        .eq('store_id', profile.store_id)
+        .gte('orders.created_at', startDate)
+        .lt('orders.created_at', endDate);
       
       const productMap: Record<string, any> = {};
       items?.forEach((item: any) => {
@@ -170,7 +246,34 @@ export default function ReportsPage() {
           <p className="text-[#86868b] font-medium mt-1">Comprehensive analysis of your store performance.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={fetchReportData} variant="outline" className="rounded-2xl h-11 font-bold">
+          <div className="flex bg-white border border-gray-100 p-1 rounded-2xl shadow-sm">
+            {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setTimeRange(r)}
+                className={`px-4 py-2 rounded-xl text-[12px] font-bold capitalize transition-all ${
+                  timeRange === r 
+                    ? 'bg-black text-white shadow-lg' 
+                    : 'text-gray-400 hover:text-black hover:bg-gray-50'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-[#0071e3] transition-colors focus-within:border-[#0071e3] focus-within:ring-2 focus-within:ring-[#0071e3]/20">
+            <Calendar className="h-4 w-4 text-gray-400" />
+            <input 
+              type="date" 
+              className="text-[13px] font-semibold text-gray-600 bg-transparent outline-none cursor-pointer"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              max={format(new Date(), 'yyyy-MM-dd')}
+            />
+          </div>
+
+          <Button onClick={() => fetchReportData(selectedDate, timeRange)} variant="outline" className="rounded-2xl h-11 font-bold">
             <RefreshCw className={loading ? 'animate-spin' : ''} />
           </Button>
           <DropdownMenu>
@@ -212,7 +315,8 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Sales Chart */}
         <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-          <h3 className="text-xl font-bold text-black mb-8">Revenue Growth (14 Days)</h3>
+          <h3 className="text-xl font-bold text-black mb-1">Revenue Performance</h3>
+          <p className="text-[13px] text-gray-400 font-medium mb-8">Breakdown for the selected {timeRange} period</p>
           <div className="h-[350px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={salesByDay}>

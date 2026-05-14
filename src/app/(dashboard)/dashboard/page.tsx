@@ -23,7 +23,18 @@ import {
   Tooltip, 
   ResponsiveContainer,
 } from 'recharts';
-import { format, startOfDay, subDays } from 'date-fns';
+import { 
+  format, 
+  startOfDay, 
+  endOfDay,
+  subDays, 
+  startOfWeek, 
+  endOfWeek, 
+  startOfMonth, 
+  endOfMonth, 
+  startOfYear, 
+  endOfYear 
+} from 'date-fns';
 
 export default function DashboardPage() {
   const { profile } = useAuthStore();
@@ -37,47 +48,50 @@ export default function DashboardPage() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
 
   useEffect(() => {
     if (profile?.store_id) {
-      fetchDashboardData(selectedDate);
+      fetchDashboardData(selectedDate, timeRange);
     }
-  }, [selectedDate, profile]);
+  }, [selectedDate, timeRange, profile]);
 
-  const fetchDashboardData = async (dateStr: string) => {
+  const fetchDashboardData = async (dateStr: string, range: string) => {
     if (!profile?.store_id) return;
     setLoading(true);
     try {
-      // 1. Total revenue (Total - Refunds, excluding Voids)
-      const { data: revenueData } = await supabase
+      const targetDate = new Date(dateStr + 'T00:00:00');
+      let startDate: string;
+      let endDate: string;
+
+      if (range === 'daily') {
+        startDate = startOfDay(targetDate).toISOString();
+        endDate = endOfDay(targetDate).toISOString();
+      } else if (range === 'weekly') {
+        startDate = startOfWeek(targetDate).toISOString();
+        endDate = endOfWeek(targetDate).toISOString();
+      } else if (range === 'monthly') {
+        startDate = startOfMonth(targetDate).toISOString();
+        endDate = endOfMonth(targetDate).toISOString();
+      } else {
+        startDate = startOfYear(targetDate).toISOString();
+        endDate = endOfYear(targetDate).toISOString();
+      }
+
+      // 1. Stats based on range
+      const { data: rangeData } = await supabase
         .from('orders')
         .select('total_amount, refunded_amount')
         .eq('store_id', profile.store_id)
+        .gte('created_at', startDate)
+        .lt('created_at', endDate)
         .neq('payment_status', 'voided');
 
-      const totalRevenue = revenueData?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0;
-      const totalLoss = revenueData?.reduce((sum, o) => sum + (o.refunded_amount || 0), 0) || 0;
+      const totalRevenue = rangeData?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0;
+      const totalLoss = rangeData?.reduce((sum, o) => sum + (o.refunded_amount || 0), 0) || 0;
+      const orderCount = rangeData?.length || 0;
 
-      // 2. Selected day's sales count
-      const targetDate = new Date(dateStr);
-      const targetDayStart = startOfDay(new Date(targetDate.getTime() + targetDate.getTimezoneOffset() * 60000)).toISOString();
-      const targetDayEnd = startOfDay(subDays(new Date(targetDate.getTime() + targetDate.getTimezoneOffset() * 60000), -1)).toISOString();
-
-      const { count: todaySales } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('store_id', profile.store_id)
-        .gte('created_at', targetDayStart)
-        .lt('created_at', targetDayEnd);
-
-      // 3. Total active products
-      const { count: totalProducts } = await supabase
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .eq('store_id', profile.store_id)
-        .eq('is_active', true);
-
-      // 4. Total staff (profiles)
+      // 2. All time staff count
       const { count: totalProfiles } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
@@ -85,39 +99,85 @@ export default function DashboardPage() {
 
       setStats({
         totalRevenue,
-        todaySales: todaySales || 0,
+        todaySales: orderCount,
         totalLoss,
         totalProfiles: totalProfiles || 0,
       });
 
-      // 5. Last 7 days chart data
-      const days = [];
-      for (let i = 6; i >= 0; i--) {
-        const day = subDays(new Date(), i);
-        const dayStart = startOfDay(day).toISOString();
-        const dayEnd = startOfDay(subDays(day, -1)).toISOString();
+      // 3. Dynamic Chart Data
+      const chartPoints = [];
+      if (range === 'daily' || range === 'weekly') {
+        // Show last 7 days
+        for (let i = 6; i >= 0; i--) {
+          const day = subDays(targetDate, i);
+          const dStart = startOfDay(day).toISOString();
+          const dEnd = endOfDay(day).toISOString();
 
-        const { data: dayOrders } = await supabase
-          .from('orders')
-          .select('total_amount, refunded_amount')
-          .eq('store_id', profile.store_id)
-          .gte('created_at', dayStart)
-          .lt('created_at', dayEnd)
-          .neq('payment_status', 'voided');
+          const { data: dOrders } = await supabase
+            .from('orders')
+            .select('total_amount, refunded_amount')
+            .eq('store_id', profile.store_id)
+            .gte('created_at', dStart)
+            .lt('created_at', dEnd)
+            .neq('payment_status', 'voided');
 
-        const dayRevenue = dayOrders?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0;
-        days.push({
-          name: format(day, 'EEE'),
-          revenue: parseFloat(dayRevenue.toFixed(2)),
-        });
+          const dRev = dOrders?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0;
+          chartPoints.push({
+            name: format(day, 'EEE'),
+            revenue: parseFloat(dRev.toFixed(2)),
+          });
+        }
+      } else if (range === 'monthly') {
+        // Show 4 weeks of the month
+        for (let i = 0; i < 4; i++) {
+          const wStart = subDays(endOfMonth(targetDate), (3 - i) * 7 + 6);
+          const wEnd = subDays(endOfMonth(targetDate), (3 - i) * 7);
+          
+          const { data: wOrders } = await supabase
+            .from('orders')
+            .select('total_amount, refunded_amount')
+            .eq('store_id', profile.store_id)
+            .gte('created_at', startOfDay(wStart).toISOString())
+            .lt('created_at', endOfDay(wEnd).toISOString())
+            .neq('payment_status', 'voided');
+
+          const wRev = wOrders?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0;
+          chartPoints.push({
+            name: `Week ${i + 1}`,
+            revenue: parseFloat(wRev.toFixed(2)),
+          });
+        }
+      } else {
+        // Yearly: Show 12 months
+        for (let i = 0; i < 12; i++) {
+          const mDate = new Date(targetDate.getFullYear(), i, 1);
+          const mStart = startOfMonth(mDate).toISOString();
+          const mEnd = endOfMonth(mDate).toISOString();
+
+          const { data: mOrders } = await supabase
+            .from('orders')
+            .select('total_amount, refunded_amount')
+            .eq('store_id', profile.store_id)
+            .gte('created_at', mStart)
+            .lt('created_at', mEnd)
+            .neq('payment_status', 'voided');
+
+          const mRev = mOrders?.reduce((sum, o) => sum + (o.total_amount || 0) - (o.refunded_amount || 0), 0) || 0;
+          chartPoints.push({
+            name: format(mDate, 'MMM'),
+            revenue: parseFloat(mRev.toFixed(2)),
+          });
+        }
       }
-      setChartData(days);
+      setChartData(chartPoints);
 
-      // 6. Recent orders
+      // 4. Recent orders (Filtered by range for context)
       const { data: orders } = await supabase
         .from('orders')
         .select('id, total_amount, refunded_amount, payment_method, payment_status, created_at')
         .eq('store_id', profile.store_id)
+        .gte('created_at', startDate)
+        .lt('created_at', endDate)
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -142,6 +202,22 @@ export default function DashboardPage() {
           <p className="text-[#86868b] font-medium mt-1">Here is what&apos;s happening with your store today.</p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex bg-white border border-gray-100 p-1 rounded-2xl shadow-sm">
+            {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setTimeRange(r)}
+                className={`px-4 py-2 rounded-xl text-[12px] font-bold capitalize transition-all ${
+                  timeRange === r 
+                    ? 'bg-black text-white shadow-lg' 
+                    : 'text-gray-400 hover:text-black hover:bg-gray-50'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+
           <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-[#0071e3] transition-colors focus-within:border-[#0071e3] focus-within:ring-2 focus-within:ring-[#0071e3]/20">
             <CalendarDays className="h-4 w-4 text-gray-400" />
             <input 
@@ -153,7 +229,7 @@ export default function DashboardPage() {
             />
           </div>
           <button 
-            onClick={() => fetchDashboardData(selectedDate)} 
+            onClick={() => fetchDashboardData(selectedDate, timeRange)} 
             className="p-2 bg-white border border-gray-100 rounded-xl shadow-sm hover:bg-gray-50 transition-all text-gray-400 hover:text-black"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -166,14 +242,14 @@ export default function DashboardPage() {
         <StatsCard 
           title="Total Revenue" 
           value={loading ? '...' : `$${stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          subtitle="All time"
+          subtitle={`Total for ${timeRange} period`}
           icon={DollarSign}
           color="blue"
         />
         <StatsCard 
-          title="Orders on Date" 
+          title="Orders Count" 
           value={loading ? '...' : stats.todaySales.toString()}
-          subtitle={`Completed on ${format(new Date(selectedDate + 'T00:00:00'), 'MMM d')}`}
+          subtitle={`Total in selected ${timeRange}`}
           icon={ShoppingBag}
           color="indigo"
         />
@@ -199,8 +275,8 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="text-xl font-bold text-black" style={{fontFamily: 'var(--font-outfit)'}}>Revenue (Last 7 Days)</h3>
-              <p className="text-[13px] text-gray-400 font-medium">Based on completed orders</p>
+              <h3 className="text-xl font-bold text-black" style={{fontFamily: 'var(--font-outfit)'}}>Revenue Trends</h3>
+              <p className="text-[13px] text-gray-400 font-medium">Visualizing data for the selected {timeRange} period</p>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-[#0071e3]" />

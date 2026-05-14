@@ -53,14 +53,18 @@ export function CheckoutDialog({
   items,
   subtotal,
   tax,
-  total
+  subtotal,
+  tax,
+  total,
+  initialMethod = 'cash'
 }: { 
   open: boolean, 
   onOpenChange: (open: boolean) => void,
   items: any[],
   subtotal: number,
   tax: number,
-  total: number
+  total: number,
+  initialMethod?: 'cash' | 'card'
 }) {
   const { profile } = useAuthStore();
   const { clearCart } = useCartStore();
@@ -77,7 +81,14 @@ export function CheckoutDialog({
 
   // Reset state when dialog closes
   useEffect(() => {
-    if (!open) {
+    if (open) {
+      setMethod(initialMethod);
+      if (initialMethod === 'cash') {
+        setStep('cash-input');
+      } else {
+        handleMethodContinue(initialMethod);
+      }
+    } else {
       setTimeout(() => {
         setStep('selection');
         setCashTendered('');
@@ -88,7 +99,7 @@ export function CheckoutDialog({
         setReceiptData(null);
       }, 300);
     }
-  }, [open]);
+  }, [open, initialMethod]);
 
   const changeDue = Math.max(0, (parseFloat(cashTendered) || 0) - total);
 
@@ -179,8 +190,11 @@ export function CheckoutDialog({
     }
   };
 
-  const handleMethodContinue = async () => {
-    if (method === 'cash') {
+  const handleMethodContinue = async (selectedMethod?: 'cash' | 'card') => {
+    const currentMethod = selectedMethod || method;
+    setMethod(currentMethod);
+    
+    if (currentMethod === 'cash') {
       setStep('cash-input');
     } else {
       try {
@@ -197,6 +211,7 @@ export function CheckoutDialog({
         setStep('card-payment');
       } catch (err: any) {
         toast.error('Could not initialize card payment: ' + err.message);
+        setStep('selection');
       } finally {
         setLoading(false);
       }
@@ -307,14 +322,6 @@ export function CheckoutDialog({
 
         {/* Header Section */}
         <div className="p-10 bg-[#fbfbfd] border-b border-gray-50 relative">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="absolute top-6 right-6 text-gray-300 hover:text-black rounded-full"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="h-5 w-5" />
-          </Button>
           <div className="flex items-center gap-4 mb-2">
             <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center">
               <Receipt className="text-white h-5 w-5" />

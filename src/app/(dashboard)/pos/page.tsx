@@ -35,9 +35,8 @@ export default function POSPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const { items, addItem, removeItem, updateQuantity, subtotal, tax, total, clearCart } = useCartStore();
+  const [initialMethod, setInitialMethod] = useState<'cash' | 'card'>('cash');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -176,7 +175,7 @@ export default function POSPage() {
       </div>
 
       {/* Cart / Checkout */}
-      <div className="w-full lg:w-[380px] flex flex-col h-full bg-white rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.06)] border border-gray-100 overflow-hidden shrink-0">
+      <div className="w-full lg:w-[400px] flex flex-col h-[calc(100vh-140px)] bg-white rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.06)] border border-gray-100 overflow-hidden shrink-0 sticky top-4">
         <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-[#fbfbfd]/50">
           <div>
             <h2 className="font-black text-xl text-black tracking-tight">Current Order</h2>
@@ -251,7 +250,10 @@ export default function POSPage() {
             <Button 
               variant="outline" 
               className="h-16 rounded-2xl border-gray-200 text-black font-black text-[15px] transition-all active:scale-95 shadow-sm hover:bg-white hover:border-[#0071e3] hover:text-[#0071e3]"
-              onClick={() => setCheckoutOpen(true)} 
+              onClick={() => {
+                setInitialMethod('cash');
+                setCheckoutOpen(true);
+              }} 
               disabled={items.length === 0}
             >
               <Banknote className="mr-2 h-6 w-6" />
@@ -259,7 +261,10 @@ export default function POSPage() {
             </Button>
             <Button 
               className="h-16 rounded-2xl bg-black hover:bg-gray-800 text-white font-black text-[15px] transition-all active:scale-95 shadow-2xl shadow-black/20" 
-              onClick={() => setCheckoutOpen(true)} 
+              onClick={() => {
+                setInitialMethod('card');
+                setCheckoutOpen(true);
+              }} 
               disabled={items.length === 0}
             >
               <CreditCard className="mr-2 h-6 w-6" />
@@ -281,6 +286,7 @@ export default function POSPage() {
         subtotal={subtotal}
         tax={tax}
         total={total}
+        initialMethod={initialMethod}
       />
     </div>
 

@@ -612,25 +612,17 @@ export function CheckoutDialog({
                 The stock has been updated automatically.
               </p>
               
-              <div className="grid grid-cols-2 gap-4 w-full">
-                <Button 
-                  variant="outline" 
-                  className="h-14 rounded-2xl border-gray-100 text-black font-bold text-[15px] hover:bg-gray-50 shadow-sm" 
-                  onClick={handlePrint}
-                >
-                  <Receipt className="mr-2 h-5 w-5 text-gray-400" />
-                  Print Receipt
-                </Button>
+              <div className="grid grid-cols-1 gap-4 w-full">
                 <Button 
                   variant="outline" 
                   className="h-14 rounded-2xl border-gray-100 text-black font-bold text-[15px] hover:bg-gray-50 shadow-sm" 
                   onClick={downloadReceipt}
                 >
                   <Download className="mr-2 h-5 w-5 text-gray-400" />
-                  Save PDF
+                  Save PDF Invoice
                 </Button>
                 <Button 
-                  className="h-14 rounded-2xl bg-black hover:bg-gray-800 text-white font-bold text-[15px] shadow-xl col-span-2" 
+                  className="h-14 rounded-2xl bg-black hover:bg-gray-800 text-white font-bold text-[15px] shadow-xl" 
                   onClick={closeAndClear}
                 >
                   Next Order

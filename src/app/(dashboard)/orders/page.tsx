@@ -71,6 +71,7 @@ export default function OrdersPage() {
           id,
           total_amount,
           tax_amount,
+          discount_amount,
           payment_method,
           payment_status,
           created_at,
@@ -225,6 +226,8 @@ export default function OrdersPage() {
   }, [receiptData, profile?.stores?.auto_print_receipt]);
 
   const handleReprint = (order: any) => {
+    const subtotal = order.order_items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0);
+    
     setReceiptData({
       orderId: order.id,
       date: format(new Date(order.created_at), 'MMM d, yyyy h:mm a'),
@@ -235,8 +238,9 @@ export default function OrdersPage() {
         unit_price: item.unit_price,
         price: item.unit_price
       })),
-      subtotal: order.total_amount - (order.tax_amount || 0),
+      subtotal: subtotal,
       tax: order.tax_amount || 0,
+      discount: order.discount_amount || 0,
       total: order.total_amount,
       type: 'sale'
     });
@@ -633,12 +637,16 @@ export default function OrdersPage() {
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-500 font-medium">Tax</span>
                 <span className="font-bold text-gray-900">
-                  ${(selectedOrder?.tax_amount ? (
-                    (selectedOrder?.order_items?.reduce((sum: number, item: any) => sum + (item.unit_price || 0) * (item.quantity - (item.refunded_quantity || 0)), 0) || 0) * 
-                    (selectedOrder.tax_amount / (selectedOrder.total_amount - selectedOrder.tax_amount || 1))
-                  ) : 0).toFixed(2)}
+                  ${(selectedOrder?.tax_amount || 0).toFixed(2)}
                 </span>
               </div>
+              
+              {(selectedOrder?.discount_amount > 0) && (
+                <div className="flex justify-between items-center text-sm text-rose-600">
+                  <span className="font-medium">Discount</span>
+                  <span className="font-bold">-${selectedOrder.discount_amount.toFixed(2)}</span>
+                </div>
+              )}
               
               {selectedOrder?.refunded_amount > 0 && (
                 <div className="flex justify-between items-center text-sm py-2 px-3 bg-rose-50 rounded-xl text-rose-600">
@@ -651,10 +659,7 @@ export default function OrdersPage() {
                 <div>
                   <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">New Total</p>
                   <p className="text-3xl font-black text-black tracking-tighter">
-                    ${(
-                      (selectedOrder?.order_items?.reduce((sum: number, item: any) => sum + (item.unit_price || 0) * (item.quantity - (item.refunded_quantity || 0)), 0) || 0) * 
-                      (1 + (selectedOrder?.tax_amount || 0) / ((selectedOrder?.total_amount || 0) - (selectedOrder?.tax_amount || 0) || 1))
-                    ).toFixed(2)}
+                    ${(selectedOrder?.total_amount || 0).toFixed(2)}
                   </p>
                 </div>
                 <div className="text-right">

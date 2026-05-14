@@ -177,7 +177,7 @@ export default function POSPage() {
       </div>
 
       {/* Cart / Checkout */}
-      <div className="w-full lg:w-[400px] flex flex-col h-[calc(100vh-150px)] bg-white rounded-[3rem] shadow-[0_40px_100px_rgba(0,0,0,0.06)] border border-gray-100 overflow-hidden shrink-0 sticky top-0">
+      <div className="w-full lg:w-[400px] flex flex-col h-[calc(100vh-120px)] bg-white rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.06)] border border-gray-100 overflow-hidden shrink-0 sticky top-0">
         <div className="p-8 border-b border-gray-50 flex items-center justify-between bg-[#fbfbfd]/50">
           <div>
             <h2 className="font-black text-xl text-black tracking-tight">Current Order</h2>
@@ -239,16 +239,16 @@ export default function POSPage() {
               <span>Tax (8%)</span>
               <span className="text-black">${tax.toFixed(2)}</span>
             </div>
-              <div className="bg-rose-50/30 rounded-2xl p-4 space-y-4 border border-rose-100/50">
+              <div className="bg-rose-50/20 rounded-2xl p-3 space-y-3 border border-rose-100/30">
                 <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[12px] font-black text-rose-500 uppercase tracking-wider">Discount</span>
-                    <div className="flex bg-white/50 p-1 rounded-xl border border-rose-100 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-rose-500 uppercase tracking-wider">Discount</span>
+                    <div className="flex bg-white/50 p-1 rounded-lg border border-rose-100/50 scale-90 origin-left">
                       <button 
                         onClick={() => setDiscount(discount, 'amount')}
                         className={cn(
-                          "px-3 py-1 rounded-lg text-[11px] font-bold transition-all", 
-                          discountType === 'amount' ? "bg-rose-500 text-white shadow-md" : "text-rose-400 hover:text-rose-500"
+                          "px-2 py-0.5 rounded-md text-[10px] font-bold transition-all", 
+                          discountType === 'amount' ? "bg-rose-500 text-white shadow-sm" : "text-rose-400 hover:text-rose-500"
                         )}
                       >
                         $
@@ -256,89 +256,90 @@ export default function POSPage() {
                       <button 
                         onClick={() => setDiscount(discount, 'percentage')}
                         className={cn(
-                          "px-3 py-1 rounded-lg text-[11px] font-bold transition-all", 
-                          discountType === 'percentage' ? "bg-rose-500 text-white shadow-md" : "text-rose-400 hover:text-rose-500"
+                          "px-2 py-0.5 rounded-md text-[10px] font-bold transition-all", 
+                          discountType === 'percentage' ? "bg-rose-500 text-white shadow-sm" : "text-rose-400 hover:text-rose-500"
                         )}
                       >
                         %
                       </button>
                     </div>
                   </div>
-                  <span className="text-sm font-black text-rose-500">
+                  <span className="text-[12px] font-black text-rose-500">
                     -{discountType === 'percentage' ? `${discount}%` : `$${discount.toFixed(2)}`}
                   </span>
                 </div>
                 
-                <div className="flex flex-wrap gap-2">
-                  {[5, 10, 15, 20, 25, 50].map((pct) => (
+                <div className="flex flex-wrap gap-1.5">
+                  {[10, 20, 50].map((pct) => (
                     <button
                       key={pct}
                       onClick={() => setDiscount(pct, 'percentage')}
                       className={cn(
-                        "px-3 py-2 rounded-xl text-[11px] font-bold transition-all active:scale-95 border",
+                        "px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all active:scale-95 border",
                         discount === pct && discountType === 'percentage'
-                          ? "bg-rose-500 text-white border-rose-500 shadow-md"
+                          ? "bg-rose-500 text-white border-rose-500 shadow-sm"
                           : "bg-white text-rose-500 border-rose-100 hover:bg-rose-50"
                       )}
                     >
                       {pct}%
                     </button>
                   ))}
-                </div>
-
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-rose-400 font-bold text-xs pointer-events-none group-focus-within:text-rose-500 transition-colors">
-                    {discountType === 'percentage' ? '%' : '$'}
+                  <div className="relative flex-1 min-w-[120px]">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-rose-400 font-bold text-[10px] pointer-events-none transition-colors">
+                      {discountType === 'percentage' ? '%' : '$'}
+                    </div>
+                    <input 
+                      type="number"
+                      placeholder="Manual..."
+                      className="w-full bg-white border border-rose-100 rounded-xl pl-7 pr-3 py-1.5 text-[11px] font-bold focus:ring-1 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      value={discount || ''}
+                      onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                    />
                   </div>
-                  <input 
-                    type="number"
-                    placeholder="Enter manual discount..."
-                    className="w-full bg-white border border-rose-100 rounded-xl pl-9 pr-4 py-3 text-[13px] font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    value={discount || ''}
-                    onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                  />
                 </div>
               </div>
             </div>
           </div>
           
-          <div className="pt-6 border-t border-dashed border-gray-200">
+        <div className="px-8 pb-8 bg-[#fbfbfd] space-y-4">
+          <div className="pt-4 border-t border-dashed border-gray-200">
             <div className="flex justify-between items-center">
                <span className="text-lg font-black text-black uppercase tracking-widest">Total Due</span>
-               <span className="text-4xl font-black text-[#0071e3] tracking-tighter">${total.toFixed(2)}</span>
+               <span className="text-3xl font-black text-[#0071e3] tracking-tighter">${total.toFixed(2)}</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <Button 
               variant="outline" 
-              className="h-16 rounded-2xl border-gray-200 text-black font-black text-[15px] transition-all active:scale-95 shadow-sm hover:bg-white hover:border-[#0071e3] hover:text-[#0071e3]"
+              className="h-14 rounded-2xl border-gray-200 text-black font-black text-[14px] transition-all active:scale-95 shadow-sm hover:bg-white hover:border-[#0071e3] hover:text-[#0071e3]"
               onClick={() => {
                 setInitialMethod('cash');
                 setCheckoutOpen(true);
               }} 
               disabled={items.length === 0}
             >
-              <Banknote className="mr-2 h-6 w-6" />
+              <Banknote className="mr-2 h-5 w-5" />
               CASH
             </Button>
             <Button 
-              className="h-16 rounded-2xl bg-black hover:bg-gray-800 text-white font-black text-[15px] transition-all active:scale-95 shadow-2xl shadow-black/20" 
+              className="h-14 rounded-2xl bg-black hover:bg-gray-800 text-white font-black text-[14px] transition-all active:scale-95 shadow-2xl shadow-black/20" 
               onClick={() => {
                 setInitialMethod('card');
                 setCheckoutOpen(true);
               }} 
               disabled={items.length === 0}
             >
-              <CreditCard className="mr-2 h-6 w-6" />
+              <CreditCard className="mr-2 h-5 w-5" />
               CHARGE
             </Button>
           </div>
           
-          <Button variant="ghost" className="w-full text-gray-400 font-black text-[11px] h-10 hover:text-[#0071e3] hover:bg-blue-50/50 rounded-xl uppercase tracking-widest">
+          <Button variant="ghost" className="w-full text-gray-400 font-black text-[10px] h-8 hover:text-[#0071e3] hover:bg-blue-50/50 rounded-xl uppercase tracking-widest">
             <UserPlus className="mr-2 h-4 w-4" />
             Assign Customer
           </Button>
+        </div>
         <CheckoutDialog 
           open={checkoutOpen} 
           onOpenChange={setCheckoutOpen}

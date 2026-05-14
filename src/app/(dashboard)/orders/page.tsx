@@ -40,6 +40,7 @@ import { jsPDF } from 'jspdf';
 import { useAuthStore } from '@/store/useAuthStore';
 import { voidOrder, refundOrder } from '@/app/actions/orders';
 import { toast } from 'sonner';
+import { ReceiptPrinter } from '@/components/pos/receipt-printer';
 
 export default function OrdersPage() {
   const { profile } = useAuthStore();
@@ -51,6 +52,7 @@ export default function OrdersPage() {
   const [refundReason, setRefundReason] = useState('');
   const [refundItems, setRefundItems] = useState<Record<string, number>>({});
   const [actionLoading, setActionLoading] = useState(false);
+  const [receiptData, setReceiptData] = useState<any | null>(null);
 
   useEffect(() => {
     if (profile?.store_id) {
@@ -111,6 +113,20 @@ export default function OrdersPage() {
     downloadCSV(data, 'orders_export.csv');
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  useEffect(() => {
+    const autoPrint = profile?.stores?.auto_print_receipt !== false;
+    if (receiptData && autoPrint) {
+      const timer = setTimeout(() => {
+        handlePrint();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [receiptData, profile?.stores?.auto_print_receipt]);
+
   const handleVoidOrder = async (orderId: string) => {
     if (!confirm('Are you sure you want to VOID this transaction? This will restore stock and mark the order as voided.')) return;
     
@@ -118,6 +134,27 @@ export default function OrdersPage() {
     const res = await voidOrder(orderId);
     if (res.success) {
       toast.success('Transaction voided successfully');
+      
+      // Setup void receipt data
+      const order = orders.find(o => o.id === orderId);
+      if (order) {
+        setReceiptData({
+          orderId: order.id,
+          date: new Date().toLocaleString(),
+          method: order.payment_method,
+          items: order.order_items.map((item: any) => ({
+            name: item.products?.name,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            price: item.unit_price
+          })),
+          subtotal: order.total_amount - (order.tax_amount || 0),
+          tax: order.tax_amount || 0,
+          total: order.total_amount,
+          type: 'void'
+        });
+      }
+
       setSelectedOrder(null);
       fetchOrders();
     } else {
@@ -142,6 +179,34 @@ export default function OrdersPage() {
     const res = await refundOrder(selectedOrder.id, itemsToRefund, refundReason);
     if (res.success) {
       toast.success('Refund processed successfully');
+      
+      // Setup refund receipt data
+      const refundTotal = calculateRefundTotal();
+      const originalSubtotal = selectedOrder.total_amount - (selectedOrder.tax_amount || 0);
+      const taxRate = originalSubtotal > 0 ? (selectedOrder.tax_amount || 0) / originalSubtotal : 0.08;
+      const refundSubtotal = refundTotal / (1 + taxRate);
+      const refundTax = refundTotal - refundSubtotal;
+
+      setReceiptData({
+        orderId: selectedOrder.id,
+        date: new Date().toLocaleString(),
+        method: selectedOrder.payment_method,
+        items: itemsToRefund.map(rItem => {
+          const originalItem = selectedOrder.order_items.find((oi: any) => oi.id === rItem.id);
+          return {
+            name: originalItem?.products?.name,
+            quantity: rItem.quantity,
+            unit_price: originalItem?.unit_price,
+            price: originalItem?.unit_price
+          };
+        }),
+        subtotal: refundSubtotal,
+        tax: refundTax,
+        total: refundTotal,
+        type: 'refund',
+        refundReason: refundReason
+      });
+
       setIsRefundDialogOpen(false);
       setRefundReason('');
       setRefundItems({});
@@ -613,6 +678,8 @@ export default function OrdersPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ReceiptPrinter receiptData={receiptData} />
     </div>
   );
 }

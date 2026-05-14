@@ -239,49 +239,64 @@ export default function POSPage() {
               <span>Tax (8%)</span>
               <span className="text-black">${tax.toFixed(2)}</span>
             </div>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-[14px] text-rose-500 font-bold">
-                <div className="flex items-center gap-2">
-                  <span>Discount</span>
-                  <div className="flex bg-rose-50 p-1 rounded-lg">
-                    <button 
-                      onClick={() => setDiscount(discount, 'amount')}
-                      className={cn("px-2 py-0.5 rounded-md text-[10px] transition-all", discountType === 'amount' ? "bg-rose-500 text-white shadow-sm" : "text-rose-400")}
-                    >
-                      $
-                    </button>
-                    <button 
-                      onClick={() => setDiscount(discount, 'percentage')}
-                      className={cn("px-2 py-0.5 rounded-md text-[10px] transition-all", discountType === 'percentage' ? "bg-rose-500 text-white shadow-sm" : "text-rose-400")}
-                    >
-                      %
-                    </button>
+              <div className="bg-rose-50/30 rounded-2xl p-4 space-y-4 border border-rose-100/50">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[12px] font-black text-rose-500 uppercase tracking-wider">Discount</span>
+                    <div className="flex bg-white/50 p-1 rounded-xl border border-rose-100 shadow-sm">
+                      <button 
+                        onClick={() => setDiscount(discount, 'amount')}
+                        className={cn(
+                          "px-3 py-1 rounded-lg text-[11px] font-bold transition-all", 
+                          discountType === 'amount' ? "bg-rose-500 text-white shadow-md" : "text-rose-400 hover:text-rose-500"
+                        )}
+                      >
+                        $
+                      </button>
+                      <button 
+                        onClick={() => setDiscount(discount, 'percentage')}
+                        className={cn(
+                          "px-3 py-1 rounded-lg text-[11px] font-bold transition-all", 
+                          discountType === 'percentage' ? "bg-rose-500 text-white shadow-md" : "text-rose-400 hover:text-rose-500"
+                        )}
+                      >
+                        %
+                      </button>
+                    </div>
                   </div>
+                  <span className="text-sm font-black text-rose-500">
+                    -{discountType === 'percentage' ? `${discount}%` : `$${discount.toFixed(2)}`}
+                  </span>
                 </div>
-                <span>-{discountType === 'percentage' ? `${discount}%` : `$${discount.toFixed(2)}`}</span>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                {[5, 10, 15, 20, 25, 50].map((pct) => (
-                  <button
-                    key={pct}
-                    onClick={() => setDiscount(pct, 'percentage')}
-                    className="px-2.5 py-1.5 rounded-xl bg-rose-50 text-rose-600 text-[11px] font-black hover:bg-rose-100 transition-all active:scale-95"
-                  >
-                    {pct}%
-                  </button>
-                ))}
-                <div className="relative flex-1 min-w-[80px]">
+                
+                <div className="flex flex-wrap gap-2">
+                  {[5, 10, 15, 20, 25, 50].map((pct) => (
+                    <button
+                      key={pct}
+                      onClick={() => setDiscount(pct, 'percentage')}
+                      className={cn(
+                        "px-3 py-2 rounded-xl text-[11px] font-bold transition-all active:scale-95 border",
+                        discount === pct && discountType === 'percentage'
+                          ? "bg-rose-500 text-white border-rose-500 shadow-md"
+                          : "bg-white text-rose-500 border-rose-100 hover:bg-rose-50"
+                      )}
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-rose-400 font-bold text-xs pointer-events-none group-focus-within:text-rose-500 transition-colors">
+                    {discountType === 'percentage' ? '%' : '$'}
+                  </div>
                   <input 
                     type="number"
-                    placeholder="Manual"
-                    className="w-full bg-gray-50 border-none rounded-xl px-3 py-1.5 text-[11px] font-bold focus:ring-1 focus:ring-gray-200 outline-none"
+                    placeholder="Enter manual discount..."
+                    className="w-full bg-white border border-rose-100 rounded-xl pl-9 pr-4 py-3 text-[13px] font-bold focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     value={discount || ''}
                     onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold">
-                    {discountType === 'percentage' ? '%' : '$'}
-                  </span>
                 </div>
               </div>
             </div>

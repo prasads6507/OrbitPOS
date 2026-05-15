@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { sendSubmissionEmail } from '@/app/actions/email';
 
 import Image from 'next/image';
 
@@ -56,6 +57,15 @@ export default function SupportPage() {
       });
 
       if (error) throw error;
+
+      // Send email notification
+      await sendSubmissionEmail({
+        type: 'support',
+        storeName: formData.storeName,
+        email: formData.email,
+        issueType: formData.issueType,
+        message: formData.description
+      });
 
       toast.success('Support ticket submitted successfully! We will get back to you within 2 hours.');
       setFormData({

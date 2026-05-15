@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { sendSubmissionEmail } from '@/app/actions/email';
 export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -36,6 +37,16 @@ export default function ContactPage() {
       });
 
       if (error) throw error;
+
+      // Send email notification
+      await sendSubmissionEmail({
+        type: 'contact',
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        company: formData.company,
+        message: formData.message
+      });
 
       toast.success('Message sent successfully! We will get back to you soon.');
       setFormData({

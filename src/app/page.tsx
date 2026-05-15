@@ -58,7 +58,7 @@ export default function LandingPage() {
             {/* Premium Asset Preview */}
             <div className="relative mx-auto max-w-6xl animate-in fade-in zoom-in-95 duration-1000 delay-300">
               <Image 
-                src="/premium_pos_light_hero.png" 
+                src="/images/hero-branded.png" 
                 alt="OrbitPOS Interface" 
                 width={1200} 
                 height={800} 
@@ -129,12 +129,12 @@ export default function LandingPage() {
           </div>
           <div className="flex animate-marquee gap-8 px-8">
             {[
-              '/pos-mockup-1.png',
-              '/pos-mockup-2.png',
-              '/pos-mockup-3.png',
-              '/pos-mockup-4.png',
-              '/pos-mockup-5.png',
-              '/pos-mockup-6.png',
+              '/images/cafe-lifestyle.png',
+              '/images/dashboard-analytics.png',
+              '/images/hero-branded.png',
+              '/images/cafe-lifestyle.png',
+              '/images/dashboard-analytics.png',
+              '/images/hero-branded.png',
             ].map((src, i) => (
               <div key={i} className="relative w-[500px] md:w-[700px] aspect-video shrink-0 rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.08)] group">
                 <Image 

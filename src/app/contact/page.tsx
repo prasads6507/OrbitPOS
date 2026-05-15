@@ -1,17 +1,17 @@
 'use client';
 
-import { PublicHeader } from '@/components/layout/public-header';
-import { PublicFooter } from '@/components/layout/public-footer';
+import { Mail, MapPin, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Mail, Phone, MapPin, Send, MessageSquare, Building2, Globe, Loader2 } from 'lucide-react';
-import Link from 'next/link';
+import { PublicHeader } from '@/components/layout/public-header';
+import { PublicFooter } from '@/components/layout/public-footer';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+import { sendSubmissionEmail } from '@/app/actions/email';
+
 export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -27,6 +27,7 @@ export default function ContactPage() {
     setIsSubmitting(true);
 
     try {
+      // 1. Save to Supabase (Database record)
       const { error } = await supabase.from('form_submissions').insert({
         type: 'contact',
         first_name: formData.firstName,
@@ -38,13 +39,32 @@ export default function ContactPage() {
 
       if (error) throw error;
 
-      // Manually trigger the form submission to FormSubmit
-      // (e.target.submit() bypasses the onSubmit handler, preventing a loop)
-      (e.target as HTMLFormElement).submit();
+      // 2. Emergency fallback to Resend (Email notification)
+      const emailResult = await sendSubmissionEmail({
+        type: 'contact',
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        company: formData.company,
+        message: formData.message
+      });
+
+      if (!emailResult.success) {
+        console.warn('Email delivery error:', emailResult.error);
+        // We still show success to the user because it was saved to DB
+      }
+
+      toast.success('Message sent successfully! We will get back to you soon.');
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        company: '',
+        message: ''
+      });
     } catch (error: any) {
       console.error('Contact form error:', error);
-      toast.error(`Failed to save record: ${error.message || 'Unknown error'}`);
-      e.preventDefault(); // Stop the form submission if DB save fails
+      toast.error(`Submission error: ${error.message || 'Please try again'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -101,14 +121,9 @@ export default function ContactPage() {
             {/* Contact Form */}
             <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-1000 delay-400">
               <form 
-                action="https://formsubmit.co/orbitpossales@gmail.com" 
-                method="POST"
                 onSubmit={handleSubmit}
                 className="space-y-6"
               >
-                <input type="hidden" name="_subject" value="New OrbitPOS Contact Lead" />
-                <input type="hidden" name="_template" value="table" />
-                <input type="hidden" name="_captcha" value="false" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="firstName" className="text-[13px] font-semibold text-gray-500 ml-1">First Name</Label>
@@ -178,21 +193,17 @@ export default function ContactPage() {
                 <Button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="w-full bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full h-14 text-lg font-bold transition-all hover:scale-[1.01] shadow-lg shadow-blue-500/10 flex items-center justify-center gap-2"
+                  className="w-full h-14 rounded-2xl bg-black hover:bg-gray-900 text-white font-bold text-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 shadow-xl shadow-gray-200"
                 >
                   {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Sending...
-                    </>
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <span>Sending...</span>
+                    </div>
                   ) : (
-                    'Send Message'
+                    "Send Message"
                   )}
                 </Button>
-                
-                <p className="text-center text-[13px] text-[#86868b] font-medium px-4">
-                  By clicking send, you agree to our <Link href="/privacy" className="text-[#0071e3] hover:underline">Privacy Policy</Link> and <Link href="/terms" className="text-[#0071e3] hover:underline">Terms of Service</Link>.
-                </p>
               </form>
             </div>
           </div>
@@ -204,16 +215,16 @@ export default function ContactPage() {
   );
 }
 
-function ContactMethod({ icon: Icon, title, description, value }: any) {
+function ContactMethod({ icon: Icon, title, description, value }: { icon: any, title: string, description: string, value: string }) {
   return (
-    <div className="flex gap-4 group">
-      <div className="w-12 h-12 rounded-2xl bg-[#f5f5f7] flex items-center justify-center shrink-0 group-hover:bg-[#0071e3] transition-colors">
-        <Icon className="w-6 h-6 text-black group-hover:text-white transition-colors" />
+    <div className="flex gap-6 group">
+      <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-[#f5f5f7] flex items-center justify-center group-hover:bg-[#0071e3]/10 transition-colors">
+        <Icon className="w-6 h-6 text-[#0071e3]" />
       </div>
       <div>
-        <h3 className="font-bold text-lg mb-1">{title}</h3>
+        <h3 className="text-lg font-bold tracking-tight mb-1">{title}</h3>
         <p className="text-[#86868b] font-medium text-[15px] mb-1">{description}</p>
-        <p className="font-semibold text-[#1d1d1f]">{value}</p>
+        <p className="text-black font-semibold">{value}</p>
       </div>
     </div>
   );

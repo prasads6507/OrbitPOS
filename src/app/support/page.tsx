@@ -1,39 +1,15 @@
 'use client';
 
-import { PublicHeader } from '@/components/layout/public-header';
-import { PublicFooter } from '@/components/layout/public-footer';
-import { Button } from '@/components/ui/button';
-import { 
-  BookOpen, 
-  LifeBuoy, 
-  Settings, 
-  CreditCard, 
-  Users, 
-  Zap, 
-  ArrowRight,
-  MessageCircle,
-  ShieldCheck,
-  Globe,
-  Database,
-  Loader2
-} from 'lucide-react';
-import Link from 'next/link';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-
+import { sendSubmissionEmail } from '@/app/actions/email';
+import { PublicHeader } from '@/components/layout/public-header';
+import { PublicFooter } from '@/components/layout/public-footer';
+import { LifeBuoy, Zap, ShieldCheck, Clock } from 'lucide-react';
 import Image from 'next/image';
 
 export default function SupportPage() {
-  const mockups = [
-    '/support-mockup-1.png',
-    '/support-mockup-2.png',
-    '/support-mockup-3.png',
-    '/support-mockup-4.png',
-    '/support-mockup-5.png',
-    '/support-mockup-6.png',
-  ];
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     storeName: '',
@@ -47,6 +23,7 @@ export default function SupportPage() {
     setIsSubmitting(true);
 
     try {
+      // 1. Save to Supabase
       const { error } = await supabase.from('form_submissions').insert({
         type: 'support',
         store_name: formData.storeName,
@@ -57,229 +34,160 @@ export default function SupportPage() {
 
       if (error) throw error;
 
-      // Manually trigger the form submission to FormSubmit
-      // (e.target.submit() bypasses the onSubmit handler, preventing a loop)
-      (e.target as HTMLFormElement).submit();
+      // 2. Emergency fallback to Resend
+      const emailResult = await sendSubmissionEmail({
+        type: 'support',
+        storeName: formData.storeName,
+        email: formData.email,
+        issueType: formData.issueType,
+        message: formData.description
+      });
+
+      if (!emailResult.success) {
+        console.warn('Email delivery error:', emailResult.error);
+      }
+
+      toast.success('Support ticket submitted successfully! We will get back to you within 2 hours.');
+      setFormData({
+        storeName: '',
+        email: '',
+        issueType: 'Technical Issue',
+        description: ''
+      });
     } catch (error: any) {
       console.error('Support form error:', error);
-      toast.error(`Failed to save ticket: ${error.message || 'Unknown error'}`);
-      e.preventDefault(); // Stop form submission if DB save fails
+      toast.error(`Submission error: ${error.message || 'Please try again'}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-white text-[#1d1d1f] selection:bg-indigo-100 font-sans">
+    <div className="flex flex-col min-h-screen bg-white">
       <PublicHeader />
-
-      <main className="flex-1 pt-32 pb-24">
-        {/* Hero Section */}
-        <section className="bg-[#f5f5f7] py-24 mb-20">
-          <div className="container px-8 mx-auto text-center">
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-black mb-6">
-              OrbitPOS Support
-            </h1>
-            <p className="max-w-2xl mx-auto text-xl text-[#86868b] font-medium leading-relaxed">
-              Explore our comprehensive guides and resources to get the most out of your modern retail platform.
-            </p>
+      
+      <main className="flex-1 pt-24">
+        {/* Support Hero */}
+        <section className="relative h-[400px] flex items-center overflow-hidden bg-black">
+          <div className="absolute inset-0 opacity-60">
+            <div className="absolute inset-0 bg-gradient-to-r from-black to-transparent z-10" />
+            <Image 
+              src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&q=80" 
+              alt="Support background" 
+              fill 
+              className="object-cover"
+            />
+          </div>
+          <div className="container relative z-20 px-8 mx-auto">
+            <div className="max-w-2xl">
+              <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 tracking-tight">
+                We&apos;re here <br /> to <span className="text-[#0071e3]">help you.</span>
+              </h1>
+              <p className="text-xl text-gray-300 font-medium">
+                Our global support team is available 24/7 to ensure your business never stops.
+              </p>
+            </div>
           </div>
         </section>
 
-        <div className="container px-8 mx-auto">
-          {/* Category Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-32">
-            <SupportCategory 
-              icon={BookOpen} 
-              title="Getting Started" 
-              description="Learn the basics of setting up your OrbitPOS account and hardware."
-              links={["Setting up your store", "Adding your first product", "Staff roles & permissions", "System requirements"]}
-            />
-            <SupportCategory 
-              icon={Zap} 
-              title="POS Features" 
-              description="Master the checkout process, discounts, and inventory tracking."
-              links={["Processing sales", "Applying discounts", "Managing stock levels", "Barcode scanning"]}
-            />
-            <SupportCategory 
-              icon={Settings} 
-              title="Advanced Settings" 
-              description="Configure integrations, tax rates, and automated reporting."
-              links={["API integrations", "Tax configuration", "Custom report builder", "Webhook setup"]}
-            />
-            <SupportCategory 
-              icon={CreditCard} 
-              title="Billing & Subscription" 
-              description="Manage your plan, invoices, and payment methods."
-              links={["Updating payment info", "Viewing invoices", "Upgrading your plan", "Refund policies"]}
-            />
-            <SupportCategory 
-              icon={Users} 
-              title="Employee Management" 
-              description="Track attendance, manage payroll, and performance."
-              links={["Setting up payroll", "Attendance tracking", "Commission structures", "Schedule management"]}
-            />
-            <SupportCategory 
-              icon={LifeBuoy} 
-              title="Troubleshooting" 
-              description="Resolve common issues with hardware and synchronization."
-              links={["Hardware connection issues", "Sync errors", "Offline mode usage", "Database recovery"]}
-            />
-            <SupportCategory 
-              icon={ShieldCheck} 
-              title="Security & Compliance" 
-              description="Ensure your store data is protected and compliant with standards."
-              links={["Data encryption", "Two-factor auth", "GDPR compliance", "Audit logs"]}
-            />
-            <SupportCategory 
-              icon={Globe} 
-              title="Multi-Store Operations" 
-              description="Manage multiple locations and regions from a single dashboard."
-              links={["Adding new locations", "Global inventory", "Region settings", "Consolidated reports"]}
-            />
-            <SupportCategory 
-              icon={Database} 
-              title="Data & Export" 
-              description="Learn how to export your data for external analysis or migration."
-              links={["CSV exports", "Backup frequency", "Migration guides", "Data retention"]}
-            />
-          </div>
-
-          {/* Product Showcase Marquee */}
-          <section className="mb-32 overflow-hidden py-20 bg-black rounded-[3rem] relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-black z-10 pointer-events-none" />
-            <div className="text-center mb-16 px-8 relative z-20">
-              <h2 className="text-3xl md:text-5xl font-black text-white mb-4 tracking-tight">Experience Excellence</h2>
-              <p className="text-gray-400 font-medium text-lg">Designed for the world's most ambitious retail brands.</p>
-            </div>
-            <div className="flex animate-marquee gap-8 px-8">
-              {mockups.map((src, i) => (
-                <div key={i} className="relative w-[400px] md:w-[600px] aspect-video shrink-0 rounded-2xl overflow-hidden border border-white/10 shadow-2xl group">
-                  <Image 
-                    src={src} 
-                    alt={`Product mockup ${i + 1}`}
-                    fill
-                    className="object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-100"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-8">
-                    <p className="text-white font-bold text-xl">Premium Interface Design</p>
-                    <p className="text-white/60 text-sm">Engineered for speed and elegance.</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Contact CTA & Support Form */}
-          <section className="bg-white rounded-[3rem] overflow-hidden border border-gray-100 shadow-2xl mb-32">
-            <div className="grid grid-cols-1 lg:grid-cols-2">
-              {/* Left Side: Info */}
-              <div className="bg-[#f5f5f7] p-12 md:p-20">
-                <div className="w-16 h-16 bg-[#0071e3] rounded-2xl flex items-center justify-center mb-8 shadow-xl shadow-blue-500/20">
-                  <MessageCircle className="w-8 h-8 text-white" />
-                </div>
-                <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight text-black">Still need help?</h2>
-                <p className="text-xl text-[#86868b] font-medium mb-10 leading-relaxed">
-                  Our support team is available 24/7. Submit a ticket and we&apos;ll get back to you within 2 hours.
-                </p>
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
-                       <Zap className="w-5 h-5 text-yellow-500" />
-                    </div>
-                    <p className="font-bold text-black">Fast Response Time</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
-                       <ShieldCheck className="w-5 h-5 text-green-500" />
-                    </div>
-                    <p className="font-bold text-black">Global Support Coverage</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Side: Form */}
+        {/* Support Grid */}
+        <section className="py-24 container px-8 mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+            
+            {/* Left Side: Form */}
+            <div className="lg:col-span-7 bg-[#f5f5f7] rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-2xl shadow-gray-100">
               <div className="p-12 md:p-20">
                 <form 
-                  action="https://formsubmit.co/orbitpossales@gmail.com" 
-                  method="POST"
                   onSubmit={handleSubmit}
                   className="space-y-6"
                 >
-                  <input type="hidden" name="_subject" value="New OrbitPOS Support Ticket" />
-                  <input type="hidden" name="_template" value="table" />
-                  <input type="hidden" name="_captcha" value="false" />
                   <div className="space-y-2">
                     <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Store Name</label>
                     <input 
-                      name="Store Name" 
-                      required 
-                      placeholder="e.g. Blue Boutique" 
-                      className="w-full h-14 rounded-2xl bg-gray-50 border-gray-100 px-6 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none" 
+                      type="text"
+                      required
+                      placeholder="The Coffee House"
+                      className="w-full h-14 px-6 rounded-2xl bg-white border-none text-lg focus:ring-2 focus:ring-[#0071e3] transition-all"
                       value={formData.storeName}
-                      onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
+                      onChange={(e) => setFormData({...formData, storeName: e.target.value})}
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
-                    <input 
-                      name="Email" 
-                      type="email" 
-                      required 
-                      placeholder="manager@store.com" 
-                      className="w-full h-14 rounded-2xl bg-gray-50 border-gray-100 px-6 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none" 
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Issue Type</label>
-                    <select 
-                      name="Issue Type" 
-                      className="w-full h-14 rounded-2xl bg-gray-50 border-gray-100 px-6 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none appearance-none"
-                      value={formData.issueType}
-                      onChange={(e) => setFormData({ ...formData, issueType: e.target.value })}
-                    >
-                      <option>Technical Issue</option>
-                      <option>Billing Question</option>
-                      <option>Hardware Setup</option>
-                      <option>Feature Request</option>
-                    </select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
+                      <input 
+                        type="email"
+                        required
+                        placeholder="support@coffeehouse.com"
+                        className="w-full h-14 px-6 rounded-2xl bg-white border-none text-lg focus:ring-2 focus:ring-[#0071e3] transition-all"
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Issue Type</label>
+                      <select 
+                        className="w-full h-14 px-6 rounded-2xl bg-white border-none text-lg focus:ring-2 focus:ring-[#0071e3] transition-all appearance-none cursor-pointer"
+                        value={formData.issueType}
+                        onChange={(e) => setFormData({...formData, issueType: e.target.value})}
+                      >
+                        <option>Technical Issue</option>
+                        <option>Billing Question</option>
+                        <option>Feature Request</option>
+                        <option>General Inquiry</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Description</label>
                     <textarea 
-                      name="Description" 
-                      required 
-                      placeholder="How can we help you today?" 
-                      className="w-full min-h-[150px] rounded-2xl bg-gray-50 border-gray-100 p-6 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none resize-none" 
+                      required
+                      rows={6}
+                      placeholder="Tell us about the issue..."
+                      className="w-full p-6 rounded-3xl bg-white border-none text-lg focus:ring-2 focus:ring-[#0071e3] transition-all resize-none"
                       value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      onChange={(e) => setFormData({...formData, description: e.target.value})}
                     />
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <button 
+                    type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-16 bg-black hover:bg-gray-800 text-white rounded-2xl text-lg font-bold transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-2"
+                    className="w-full h-16 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-2xl text-xl font-bold transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-blue-200"
                   >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      'Submit Support Ticket'
-                    )}
-                  </Button>
+                    {isSubmitting ? "Submitting..." : "Submit Support Ticket"}
+                  </button>
                 </form>
               </div>
             </div>
-          </section>
-        </div>
+
+            {/* Right Side: Features */}
+            <div className="lg:col-span-5 space-y-8">
+              <SupportFeature 
+                icon={LifeBuoy}
+                title="Expert Support"
+                description="Access our highly skilled technical team with deep POS experience."
+              />
+              <SupportFeature 
+                icon={Zap}
+                title="Rapid Response"
+                description="95% of technical tickets are resolved within the first 2 hours."
+              />
+              <SupportFeature 
+                icon={ShieldCheck}
+                title="Secure Infrastructure"
+                description="Enterprise-grade security with 99.99% uptime guaranteed."
+              />
+              <SupportFeature 
+                icon={Clock}
+                title="24/7 Monitoring"
+                description="We proactively monitor your systems to detect issues before you do."
+              />
+            </div>
+          </div>
+        </section>
       </main>
 
       <PublicFooter />
@@ -287,21 +195,14 @@ export default function SupportPage() {
   );
 }
 
-function SupportCategory({ icon: Icon, title, description, links }: any) {
+function SupportFeature({ icon: Icon, title, description }: { icon: any, title: string, description: string }) {
   return (
-    <div className="p-8 rounded-3xl bg-white border border-gray-100 hover:border-gray-200 hover:shadow-[0_20px_50px_rgba(0,0,0,0.03)] transition-all group">
-      <div className="w-12 h-12 rounded-2xl bg-[#f5f5f7] flex items-center justify-center mb-6 group-hover:bg-[#0071e3] transition-colors">
-        <Icon className="w-6 h-6 text-black group-hover:text-white transition-colors" />
+    <div className="p-8 rounded-[2rem] bg-white border border-gray-100 hover:shadow-xl hover:shadow-gray-100 transition-all group">
+      <div className="w-14 h-14 rounded-2xl bg-[#f5f5f7] flex items-center justify-center mb-6 group-hover:bg-[#0071e3] transition-colors">
+        <Icon className="w-7 h-7 text-[#0071e3] group-hover:text-white transition-colors" />
       </div>
-      <h3 className="text-xl font-bold mb-3 tracking-tight">{title}</h3>
-      <p className="text-[#86868b] font-medium text-[15px] mb-6 leading-relaxed">{description}</p>
-      <div className="space-y-3">
-        {links.map((link: string, i: number) => (
-          <div key={i} className="flex items-center gap-2 text-[14px] font-semibold text-[#0071e3] cursor-pointer hover:underline">
-            {link}
-          </div>
-        ))}
-      </div>
+      <h3 className="text-xl font-bold mb-2 tracking-tight">{title}</h3>
+      <p className="text-[#86868b] leading-relaxed font-medium">{description}</p>
     </div>
   );
 }

@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase';
 import { 
   ClipboardList, 
   Search, 
-  ArrowRight,
   Download,
   RefreshCw,
   ShoppingBag,
@@ -14,7 +13,6 @@ import {
   Clock,
   Printer,
   ChevronRight,
-  Filter,
   ChevronLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,9 +37,9 @@ import { Label } from '@/components/ui/label';
 import { format, parseISO, isToday, startOfDay, endOfDay, isValid } from 'date-fns';
 import { downloadCSV } from '@/lib/export';
 import { useAuthStore } from '@/store/useAuthStore';
-import { voidOrder } from '@/app/actions/orders';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { ReceiptPrinter } from '@/components/pos/receipt-printer';
 
 export default function OrdersPage() {
   const { profile } = useAuthStore();
@@ -55,6 +53,7 @@ export default function OrdersPage() {
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [receiptData, setReceiptData] = useState<any | null>(null);
   const itemsPerPage = 15;
 
   useEffect(() => {
@@ -65,8 +64,6 @@ export default function OrdersPage() {
 
   const fetchOrders = async () => {
     if (!profile?.store_id) return;
-    
-    // Validate Dates
     const s = parseLocalDate(startDate);
     const e = parseLocalDate(endDate);
     if (!isValid(s) || !isValid(e)) return;
@@ -101,7 +98,7 @@ export default function OrdersPage() {
 
       if (error) throw error;
       setOrders(data || []);
-      setCurrentPage(1); // Reset to page 1 on filter change
+      setCurrentPage(1);
     } catch (err) {
       console.error('Error fetching orders:', err);
     } finally {
@@ -114,16 +111,73 @@ export default function OrdersPage() {
     return new Date(year, month - 1, day);
   };
 
+  const handlePrint = () => {
+    const printContent = document.getElementById('printable-receipt');
+    if (!printContent) return;
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    if (!printWindow) {
+      toast.error('Allow popups to print');
+      return;
+    }
+    printWindow.document.write(`
+      <html>
+        <head>
+          <style>
+            @page { size: 80mm auto; margin: 0; }
+            body { margin: 0; padding: 10px; font-family: monospace; }
+            * { box-sizing: border-box; color: black !important; }
+            .flex { display: flex; justify-content: space-between; }
+            .text-center { text-align: center; }
+            .font-bold { font-weight: bold; }
+            .border-b { border-bottom: 1px dashed black; padding-bottom: 5px; margin-bottom: 5px; }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+          <script>window.onload = () => { window.print(); window.close(); };</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  useEffect(() => {
+    if (receiptData) {
+      setTimeout(() => {
+        handlePrint();
+        setReceiptData(null);
+      }, 500);
+    }
+  }, [receiptData]);
+
+  const handleReprint = (order: any) => {
+    const subtotal = order.order_items.reduce((sum: number, item: any) => sum + (item.unit_price * item.quantity), 0);
+    setReceiptData({
+      orderId: order.id,
+      date: format(parseISO(order.created_at), 'MMM d, yyyy h:mm a'),
+      method: order.payment_method,
+      items: order.order_items.map((item: any) => ({
+        name: item.products?.name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        price: item.unit_price
+      })),
+      subtotal: subtotal,
+      tax: order.tax_amount || 0,
+      total: order.total_amount,
+      cashierName: order.cashier?.full_name || 'System',
+      type: 'sale'
+    });
+  };
+
   const filteredOrders = orders.filter(o => 
     o.id.toLowerCase().includes(search.toLowerCase()) || 
     (o.cashier?.full_name || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  // Pagination Logic
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const paginatedOrders = filteredOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
 
-  // Group Paginated Orders by Day
   const groupedOrders = paginatedOrders.reduce((acc: any, order) => {
     const dateKey = format(parseISO(order.created_at), 'yyyy-MM-dd');
     if (!acc[dateKey]) acc[dateKey] = [];
@@ -133,33 +187,25 @@ export default function OrdersPage() {
 
   const sortedDates = Object.keys(groupedOrders).sort((a, b) => b.localeCompare(a));
 
-  const exportOrders = () => {
-    const data = filteredOrders.map(o => ({
-      'Order ID': o.id,
-      'Date': format(parseISO(o.created_at), 'yyyy-MM-dd HH:mm'),
-      'Cashier': o.cashier?.full_name || 'System',
-      'Total Amount': o.total_amount.toFixed(2)
-    }));
-    downloadCSV(data, 'orders_export.csv');
-  };
-
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700 pb-20">
-      {/* Header & Date Selection */}
+      {/* Hidden Receipt Printer for Thermal Printing */}
+      <div className="hidden">
+        {receiptData && <ReceiptPrinter data={receiptData} id="printable-receipt" />}
+      </div>
+
       <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-black text-black">Order Explorer</h1>
-            <p className="text-gray-400 font-bold mt-1">Select a range to analyze history.</p>
+            <p className="text-gray-400 font-bold mt-1">Audit sales and reprint receipts.</p>
           </div>
           <div className="flex items-center gap-3">
-             <Button onClick={exportOrders} variant="outline" className="rounded-2xl h-11 px-6 font-bold">
-                <Download className="mr-2 h-4 w-4" />
-                CSV
+             <Button onClick={() => downloadCSV(filteredOrders, 'orders.csv')} variant="outline" className="rounded-2xl h-11 px-6 font-bold">
+                <Download className="mr-2 h-4 w-4" /> CSV
              </Button>
              <Button onClick={fetchOrders} className="rounded-2xl h-11 px-8 bg-black hover:bg-gray-800 text-white font-bold">
-                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Update
+                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Update
              </Button>
           </div>
         </div>
@@ -179,21 +225,15 @@ export default function OrdersPage() {
 
            <div className="relative flex-1 min-w-[300px]">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <Input 
-                placeholder="Quick search by Order ID..." 
-                className="pl-12 h-13 bg-gray-50 border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-gray-100 font-bold" 
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+              <Input placeholder="Search Order ID..." className="pl-12 h-13 bg-gray-50 border-transparent rounded-2xl focus:bg-white font-bold" value={search} onChange={(e) => setSearch(e.target.value)} />
            </div>
         </div>
       </div>
 
-      {/* Grouped Results */}
       <div className="space-y-10">
         {loading ? (
           <div className="py-40 text-center"><RefreshCw className="h-12 w-12 animate-spin mx-auto text-gray-200" /></div>
-        ) : filteredOrders.length === 0 ? (
+        ) : sortedDates.length === 0 ? (
           <div className="bg-white rounded-[2.5rem] border border-dashed border-gray-200 py-40 text-center">
             <ClipboardList className="h-20 w-20 mx-auto mb-6 text-gray-100" />
             <h3 className="text-xl font-black text-black">No Records Found</h3>
@@ -216,9 +256,8 @@ export default function OrdersPage() {
                       <TableRow className="bg-gray-50/50 hover:bg-gray-50/50">
                         <TableHead className="pl-8 py-5 text-[10px] font-black uppercase text-black">Transaction</TableHead>
                         <TableHead className="text-[10px] font-black uppercase text-black">Payment</TableHead>
-                        <TableHead className="text-[10px] font-black uppercase text-black">Cashier</TableHead>
                         <TableHead className="text-right text-[10px] font-black uppercase text-black">Amount</TableHead>
-                        <TableHead className="text-right pr-8 text-[10px] font-black uppercase text-black">Details</TableHead>
+                        <TableHead className="text-right pr-8 text-[10px] font-black uppercase text-black">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -241,7 +280,6 @@ export default function OrdersPage() {
                                <span className="font-bold text-[13px] capitalize">{order.payment_method}</span>
                             </div>
                           </TableCell>
-                          <TableCell><span className="font-bold text-gray-500 text-[13px]">{order.cashier?.full_name || 'System'}</span></TableCell>
                           <TableCell className="text-right">
                              <div className="flex flex-col items-end">
                                 <span className="font-black text-black text-lg">${order.total_amount.toFixed(2)}</span>
@@ -251,9 +289,14 @@ export default function OrdersPage() {
                              </div>
                           </TableCell>
                           <TableCell className="text-right pr-8">
-                             <Button variant="ghost" className="h-10 px-4 rounded-xl font-black text-[12px] text-blue-600 hover:bg-blue-50" onClick={() => setSelectedOrder(order)}>
-                               View <ChevronRight className="ml-1 h-4 w-4" />
-                             </Button>
+                             <div className="flex items-center justify-end gap-2">
+                                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-gray-400 hover:text-black hover:bg-gray-100" onClick={() => handleReprint(order)}>
+                                   <Printer className="h-5 w-5" />
+                                </Button>
+                                <Button variant="ghost" className="h-10 px-4 rounded-xl font-black text-[12px] text-blue-600 hover:bg-blue-50" onClick={() => setSelectedOrder(order)}>
+                                   Details <ChevronRight className="ml-1 h-4 w-4" />
+                                </Button>
+                             </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -263,26 +306,12 @@ export default function OrdersPage() {
               </div>
             ))}
 
-            {/* Enhanced Pagination */}
             {totalPages > 1 && (
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-6 rounded-[2rem] border border-gray-100">
-                 <p className="text-[13px] text-gray-400 font-bold uppercase tracking-wider">
-                   Records <span className="text-black">{(currentPage - 1) * itemsPerPage + 1} — {Math.min(filteredOrders.length, currentPage * itemsPerPage)}</span> of {filteredOrders.length}
-                 </p>
-                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="icon" className="rounded-xl h-10 w-10 disabled:opacity-30" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
-                       <ChevronLeft className="h-5 w-5" />
-                    </Button>
-                    <div className="flex items-center gap-1 mx-2">
-                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                         <Button key={page} variant={currentPage === page ? 'default' : 'ghost'} className={cn("h-10 w-10 rounded-xl font-black text-[13px]", currentPage === page ? "bg-black text-white" : "text-gray-400")} onClick={() => setCurrentPage(page)}>
-                            {page}
-                         </Button>
-                       ))}
-                    </div>
-                    <Button variant="outline" size="icon" className="rounded-xl h-10 w-10 disabled:opacity-30" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
-                       <ChevronRight className="h-5 w-5" />
-                    </Button>
+              <div className="flex items-center justify-between bg-white p-6 rounded-[2rem] border border-gray-100">
+                 <p className="text-[13px] text-gray-400 font-bold uppercase">Page {currentPage} of {totalPages}</p>
+                 <div className="flex gap-2">
+                    <Button variant="outline" size="icon" className="rounded-xl" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft className="h-5 w-5" /></Button>
+                    <Button variant="outline" size="icon" className="rounded-xl" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronRight className="h-5 w-5" /></Button>
                  </div>
               </div>
             )}
@@ -290,12 +319,11 @@ export default function OrdersPage() {
         )}
       </div>
 
+      {/* Re-Styled Dialog with Print Button */}
       <Dialog open={!!selectedOrder} onOpenChange={(open) => !open && setSelectedOrder(null)}>
         <DialogContent className="max-w-md p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
           <div className="p-8 bg-[#fbfbfd] border-b border-gray-50 text-center">
-            <div className="w-16 h-16 bg-black text-white rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <ShoppingBag className="h-8 w-8" />
-            </div>
+            <div className="w-16 h-16 bg-black text-white rounded-2xl flex items-center justify-center mx-auto mb-4"><ShoppingBag className="h-8 w-8" /></div>
             <DialogTitle className="text-2xl font-black text-black">Order Receipt</DialogTitle>
             <p className="text-gray-400 font-bold text-[11px] mt-1 uppercase tracking-widest">#{selectedOrder?.id}</p>
           </div>
@@ -315,7 +343,12 @@ export default function OrdersPage() {
                 <span className="text-lg font-black uppercase text-gray-400 tracking-widest">Total Paid</span>
                 <span className="text-3xl font-black text-black">${selectedOrder?.total_amount.toFixed(2)}</span>
              </div>
-             <Button className="w-full h-14 rounded-2xl bg-black text-white font-black" onClick={() => setSelectedOrder(null)}>Close Receipt</Button>
+             <div className="grid grid-cols-2 gap-3 pt-4">
+                <Button variant="outline" className="h-14 rounded-2xl font-black" onClick={() => setSelectedOrder(null)}>Close</Button>
+                <Button className="h-14 rounded-2xl bg-black text-white font-black" onClick={() => handleReprint(selectedOrder)}>
+                   <Printer className="mr-2 h-5 w-5" /> Print
+                </Button>
+             </div>
           </div>
         </DialogContent>
       </Dialog>

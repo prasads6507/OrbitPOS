@@ -102,7 +102,7 @@ export default function ContactPage() {
             {/* Contact Form */}
             <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-1000 delay-400">
               <form 
-                action="https://formspree.io/f/orbitpossales@gmail.com" 
+                action="https://formspree.io/f/mgodgewr" 
                 method="POST"
                 onSubmit={handleSubmit}
                 className="space-y-6"

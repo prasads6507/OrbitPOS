@@ -114,30 +114,95 @@ export default function OrdersPage() {
   const handlePrint = () => {
     const printContent = document.getElementById('printable-receipt');
     if (!printContent) return;
-    const printWindow = window.open('', '_blank', 'width=400,height=600');
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (!printWindow) {
-      toast.error('Allow popups to print');
+      toast.error('Please allow popups to print receipts');
       return;
     }
+
+    // Write the receipt content with specific thermal styles (MATCHES POS EXACTLY)
     printWindow.document.write(`
+      <!DOCTYPE html>
       <html>
         <head>
+          <title>OrbitPOS Receipt</title>
           <style>
-            @page { size: 80mm auto; margin: 0; }
-            body { margin: 0; padding: 10px; font-family: monospace; }
-            * { box-sizing: border-box; color: black !important; }
-            .flex { display: flex; justify-content: space-between; }
+            @page {
+              size: 80mm auto;
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+              font-family: monospace;
+              background: white;
+            }
+            #printable-receipt {
+              display: block !important;
+              width: 80mm;
+              padding: 5mm;
+              margin: 0;
+              background: white;
+            }
+            * {
+              box-sizing: border-box;
+              color: black !important;
+            }
+            .space-y-4 > * + * { margin-top: 1rem; }
+            .space-y-2 > * + * { margin-top: 0.5rem; }
+            .space-y-1 > * + * { margin-top: 0.25rem; }
+            .flex { display: flex; }
+            .justify-between { justify-content: space-between; }
             .text-center { text-align: center; }
+            .text-right { text-align: right; }
             .font-bold { font-weight: bold; }
-            .border-b { border-bottom: 1px dashed black; padding-bottom: 5px; margin-bottom: 5px; }
+            .uppercase { text-transform: uppercase; }
+            .border-t { border-top: 1px solid black; }
+            .border-b { border-bottom: 1px solid black; }
+            .border-y { border-top: 1px solid black; border-bottom: 1px solid black; }
+            .border-dashed { border-style: dashed; }
+            .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+            .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+            .pt-2 { padding-top: 0.5rem; }
+            .pt-8 { padding-top: 2rem; }
+            .pb-4 { padding-bottom: 1rem; }
+            .mb-4 { margin-bottom: 1rem; }
+            .mb-8 { margin-bottom: 2rem; }
+            .mt-1 { margin-top: 0.25rem; }
+            .mt-8 { margin-top: 2rem; }
+            .text-xl { font-size: 1.25rem; }
+            .text-lg { font-size: 1.125rem; }
+            .text-[14px] { font-size: 14px; }
+            .text-[12px] { font-size: 12px; }
+            .text-[10px] { font-size: 10px; }
+            .text-[9px] { font-size: 9px; }
+            .font-mono { font-family: monospace; }
+            .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .w-1/2 { width: 50%; }
+            .w-1/4 { width: 25%; }
+            .opacity-70 { opacity: 0.7; }
+            .opacity-80 { opacity: 0.8; }
+            .italic { font-style: italic; }
+            .tracking-widest { letter-spacing: 0.1em; }
+            .tracking-tight { letter-spacing: -0.025em; }
           </style>
         </head>
         <body>
-          ${printContent.innerHTML}
-          <script>window.onload = () => { window.print(); window.close(); };</script>
+          <div id="printable-receipt">
+            ${printContent.innerHTML}
+          </div>
+          <script>
+            window.onload = () => {
+              window.print();
+              setTimeout(() => { window.close(); }, 500);
+            };
+          </script>
         </body>
       </html>
     `);
+
     printWindow.document.close();
   };
 

@@ -8,7 +8,11 @@ export async function submitToFormSubmit(email: string, data: any) {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify({
+        ...data,
+        _template: 'table',
+        _captcha: 'false'
+      })
     });
 
     const result = await response.json();

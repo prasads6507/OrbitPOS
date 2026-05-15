@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import Image from 'next/image';
 
 const navItems = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'cashier', 'employee'] },
@@ -66,14 +67,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}>
         <div className="mb-10 px-2 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-black rounded-xl flex items-center justify-center shadow-lg shadow-black/10 shrink-0">
-              <span className="text-white font-bold text-lg">
-                {profile ? ((profile as any)?.stores?.name?.charAt(0) || 'O') : '...'}
-              </span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-black font-heading truncate">
-              {profile ? ((profile as any)?.stores?.name || 'OrbitPOS') : 'Loading...'}
-            </span>
+            <Image 
+              src="/logo.png" 
+              alt="OrbitPOS Logo" 
+              width={140} 
+              height={40} 
+              className="h-10 w-auto transition-transform hover:scale-105" 
+            />
           </Link>
           
           <Button 

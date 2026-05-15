@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 export function PublicHeader() {
   const [scrolled, setScrolled] = useState(false);
@@ -36,12 +37,13 @@ export function PublicHeader() {
     )}>
       <div className="container mx-auto px-8 flex items-center justify-between">
         <Link className="flex items-center gap-2 group" href="/">
-          <div className="w-9 h-9 bg-black rounded-lg flex items-center justify-center transition-transform group-hover:scale-105">
-            <span className="text-white font-bold text-lg">O</span>
-          </div>
-          <span className="text-xl font-bold tracking-tight text-black">
-            OrbitPOS
-          </span>
+          <Image 
+            src="/logo.png" 
+            alt="OrbitPOS Logo" 
+            width={120} 
+            height={40} 
+            className="h-10 w-auto transition-transform group-hover:scale-105" 
+          />
         </Link>
         
         <nav className="hidden md:flex items-center gap-12">

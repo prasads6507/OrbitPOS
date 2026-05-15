@@ -29,6 +29,10 @@ export const metadata: Metadata = {
     title: "OrbitPOS | Modern Retail & Business POS",
     description: "The complete retail engine for your business.",
   },
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export const viewport = {

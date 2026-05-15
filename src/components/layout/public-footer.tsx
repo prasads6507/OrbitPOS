@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 export function PublicFooter() {
   return (
@@ -8,10 +9,13 @@ export function PublicFooter() {
       <div className="container px-8 mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
         <div className="flex flex-col md:flex-row items-center gap-4 md:gap-8">
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-7 h-7 bg-black rounded-md flex items-center justify-center">
-              <span className="text-white font-bold text-sm">O</span>
-            </div>
-            <span className="font-bold text-lg">OrbitPOS</span>
+            <Image 
+              src="/logo.png" 
+              alt="OrbitPOS Logo" 
+              width={100} 
+              height={32} 
+              className="h-8 w-auto transition-all grayscale hover:grayscale-0 opacity-80 hover:opacity-100" 
+            />
           </Link>
           <span className="hidden md:block text-gray-300">|</span>
           <span className="text-gray-400 text-[13px] font-medium text-center md:text-left">

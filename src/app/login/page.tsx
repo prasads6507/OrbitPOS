@@ -1,4 +1,5 @@
 import { LoginForm } from '@/components/auth/login-form';
+import Image from 'next/image';
 
 export default function LoginPage() {
   return (
@@ -19,12 +20,13 @@ export default function LoginPage() {
           
           <div className="p-10 relative z-20">
             <div className="mb-8 text-center">
-              <div className="w-14 h-14 bg-gradient-to-tr from-[#0071e3] to-[#42a1ff] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/30 transform hover:scale-105 transition-transform duration-500">
-                <span className="text-white font-bold text-2xl drop-shadow-md">O</span>
-              </div>
-              <h1 className="text-[28px] font-bold text-[#1d1d1f] tracking-tight mb-2">
-                OrbitPOS
-              </h1>
+              <Image 
+                src="/logo.png" 
+                alt="OrbitPOS Logo" 
+                width={180} 
+                height={60} 
+                className="mx-auto mb-6 transform hover:scale-105 transition-transform duration-500" 
+              />
               <p className="text-[14px] text-[#505055] font-medium">
                 Sign in to your workspace
               </p>

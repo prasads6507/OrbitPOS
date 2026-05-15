@@ -33,16 +33,16 @@ export function PublicHeader() {
   return (
     <header className={cn(
       "fixed top-0 w-full z-50 transition-all duration-500",
-      (scrolled || pathname !== '/' || isMobileMenuOpen) ? 'bg-white/90 backdrop-blur-xl border-b border-gray-100 py-5' : 'bg-transparent py-10'
+      (scrolled || pathname !== '/' || isMobileMenuOpen) ? 'bg-white/90 backdrop-blur-xl border-b border-gray-100 py-3' : 'bg-transparent py-5'
     )}>
       <div className="container mx-auto px-8 flex items-center justify-between">
         <Link className="flex items-center gap-2 group" href="/">
           <Image 
             src="/logo.png" 
             alt="OrbitPOS Logo" 
-            width={240} 
-            height={80} 
-            className="h-20 w-auto transition-transform group-hover:scale-105" 
+            width={180} 
+            height={60} 
+            className="h-10 w-auto transition-transform group-hover:scale-105" 
           />
         </Link>
         

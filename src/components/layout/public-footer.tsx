@@ -12,9 +12,9 @@ export function PublicFooter() {
             <Image 
               src="/logo.png" 
               alt="OrbitPOS Logo" 
-              width={100} 
-              height={32} 
-              className="h-8 w-auto transition-all grayscale hover:grayscale-0 opacity-80 hover:opacity-100" 
+              width={160} 
+              height={54} 
+              className="h-10 w-auto transition-all grayscale hover:grayscale-0 opacity-80 hover:opacity-100" 
             />
           </Link>
           <span className="hidden md:block text-gray-300">|</span>

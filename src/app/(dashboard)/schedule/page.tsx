@@ -269,12 +269,14 @@ export default function SchedulePage() {
               setIsDialogOpen(open);
               if (!open) resetForm();
             }}>
-              <DialogTrigger asChild>
-                <Button className="rounded-2xl h-12 px-8 bg-[#0071e3] hover:bg-[#0077ed] text-white font-bold text-[14px] shadow-lg shadow-blue-500/10 flex items-center gap-2 transition-all active:scale-95">
-                  <Plus className="h-5 w-5" />
-                  Add Shift
-                </Button>
-              </DialogTrigger>
+              <DialogTrigger 
+                render={
+                  <Button className="rounded-2xl h-12 px-8 bg-[#0071e3] hover:bg-[#0077ed] text-white font-bold text-[14px] shadow-lg shadow-blue-500/10 flex items-center gap-2 transition-all active:scale-95">
+                    <Plus className="h-5 w-5" />
+                    Add Shift
+                  </Button>
+                }
+              />
               <DialogContent className="sm:max-w-[425px] rounded-[2rem] border-none shadow-2xl p-8">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-black text-black">

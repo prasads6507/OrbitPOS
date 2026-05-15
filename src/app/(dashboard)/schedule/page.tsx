@@ -12,10 +12,9 @@ import {
   Clock,
   Trash2,
   Edit2,
-  CalendarDays,
   ArrowRight,
   Filter,
-  Search
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -48,18 +47,11 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { 
   format, 
-  startOfWeek, 
-  subWeeks, 
-  addWeeks, 
-  isSameDay, 
   parseISO,
-  eachDayOfInterval,
-  endOfWeek,
   isToday as isDateToday,
   startOfDay,
   endOfDay,
-  isValid,
-  isAfter
+  isValid
 } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -68,8 +60,8 @@ export default function SchedulePage() {
   const { profile } = useAuthStore();
   
   // Custom View Range State
-  const [startInput, setStartInput] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
-  const [endInput, setEndInput] = useState(format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
+  const [startInput, setStartInput] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [endInput, setEndInput] = useState(format(addWeeks(new Date(), 1), 'yyyy-MM-dd'));
   
   const [shifts, setShifts] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -85,20 +77,12 @@ export default function SchedulePage() {
   const [note, setNote] = useState('');
 
   const isAdmin = profile?.role === 'admin';
-  
-  // Safe Interval Calculation
-  const getIntervalDays = () => {
-    try {
-      const s = parseISO(startInput);
-      const e = parseISO(endInput);
-      if (isValid(s) && isValid(e) && !isAfter(s, e)) {
-        return eachDayOfInterval({ start: s, end: e });
-      }
-    } catch (err) {}
-    return [];
-  };
 
-  const viewDays = getIntervalDays();
+  // Helper to parse date string as LOCAL time to avoid timezone shifts
+  const parseLocalDate = (dateStr: string) => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
 
   useEffect(() => {
     if (profile?.store_id) {
@@ -107,9 +91,9 @@ export default function SchedulePage() {
   }, [profile, startInput, endInput]);
 
   const fetchData = async () => {
-    const s = parseISO(startInput);
-    const e = parseISO(endInput);
-    if (!isValid(s) || !isValid(e) || isAfter(s, e)) return;
+    const s = parseLocalDate(startInput);
+    const e = parseLocalDate(endInput);
+    if (!isValid(s) || !isValid(e)) return;
 
     setLoading(true);
     try {
@@ -130,7 +114,8 @@ export default function SchedulePage() {
         `)
         .eq('store_id', profile.store_id)
         .gte('start_time', startOfDay(s).toISOString())
-        .lte('start_time', endOfDay(e).toISOString());
+        .lte('start_time', endOfDay(e).toISOString())
+        .order('start_time', { ascending: true });
 
       setShifts(shiftData || []);
     } catch (error) {
@@ -195,58 +180,65 @@ export default function SchedulePage() {
   const downloadPDF = () => {
     try {
       const doc = new jsPDF();
-      doc.text('Employee Schedule', 14, 20);
+      doc.text('Shift Report', 14, 20);
       const tableData = shifts.map(s => [
-        format(parseISO(s.start_time), 'EEE, MMM dd'),
+        format(parseISO(s.start_time), 'MMM dd, yyyy'),
         s.employee?.full_name || '?',
         format(parseISO(s.start_time), 'HH:mm'),
-        format(parseISO(s.end_time), 'HH:mm')
+        format(parseISO(s.end_time), 'HH:mm'),
+        s.note || ''
       ]);
-      autoTable(doc, { startY: 30, head: [['Date', 'Staff', 'In', 'Out']], body: tableData });
+      autoTable(doc, { startY: 30, head: [['Date', 'Staff', 'In', 'Out', 'Note']], body: tableData });
       doc.save('Schedule.pdf');
     } catch (e) {}
   };
 
+  // Group shifts by date for a "neat" list view without "empty week" logic
+  const groupedShifts = shifts.reduce((acc: any, shift) => {
+    const dateKey = format(parseISO(shift.start_time), 'yyyy-MM-dd');
+    if (!acc[dateKey]) acc[dateKey] = [];
+    acc[dateKey].push(shift);
+    return acc;
+  }, {});
+
+  const sortedDates = Object.keys(groupedShifts).sort();
+
+  function addWeeks(date: Date, weeks: number) {
+    const result = new Date(date);
+    result.setDate(result.getDate() + weeks * 7);
+    return result;
+  }
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-20">
-      {/* Dynamic Filter Header */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+    <div className="max-w-7xl mx-auto space-y-6 pb-20 animate-in fade-in duration-500">
+      {/* Header & Filters */}
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-[#0071e3]">
-            <Filter className="h-6 w-6" />
+          <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center text-white">
+            <CalendarIcon className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">Shift Explorer</h1>
-            <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest">Custom Date Selection</p>
+            <h1 className="text-xl font-bold">Shift Schedule</h1>
+            <p className="text-[11px] text-gray-400 font-bold uppercase tracking-widest">Active Store: {profile?.stores?.name || 'OrbitPOS'}</p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-100">
              <div className="flex items-center gap-3 px-2">
-                <span className="text-[10px] font-black uppercase text-gray-400">Start</span>
-                <Input 
-                  type="date" 
-                  className="h-9 w-40 rounded-lg border-transparent bg-white font-bold text-[13px]" 
-                  value={startInput} 
-                  onChange={e => setStartInput(e.target.value)} 
-                />
+                <span className="text-[10px] font-black uppercase text-gray-400">From</span>
+                <Input type="date" className="h-9 w-40 rounded-lg border-transparent bg-white font-bold text-[13px]" value={startInput} onChange={e => setStartInput(e.target.value)} />
              </div>
              <ArrowRight className="h-4 w-4 text-gray-300" />
              <div className="flex items-center gap-3 px-2">
-                <span className="text-[10px] font-black uppercase text-gray-400">End</span>
-                <Input 
-                  type="date" 
-                  className="h-9 w-40 rounded-lg border-transparent bg-white font-bold text-[13px]" 
-                  value={endInput} 
-                  onChange={e => setEndInput(e.target.value)} 
-                />
+                <span className="text-[10px] font-black uppercase text-gray-400">To</span>
+                <Input type="date" className="h-9 w-40 rounded-lg border-transparent bg-white font-bold text-[13px]" value={endInput} onChange={e => setEndInput(e.target.value)} />
              </div>
           </div>
 
           <Button variant="outline" className="h-10 rounded-xl font-bold px-6" onClick={downloadPDF}>
             <Download className="h-4 w-4 mr-2" />
-            Export
+            PDF
           </Button>
 
           {isAdmin && (
@@ -255,19 +247,19 @@ export default function SchedulePage() {
               if (!open) resetForm();
             }}>
               <DialogTrigger render={
-                <Button className="h-10 rounded-xl bg-[#0071e3] font-bold px-8 shadow-lg shadow-blue-500/10">
+                <Button className="h-10 rounded-xl bg-[#0071e3] font-bold px-8">
                   <Plus className="h-4 w-4 mr-2" />
                   Assign
                 </Button>
               } />
-              <DialogContent className="sm:max-w-[400px] rounded-[2rem] p-6 shadow-2xl border-none">
+              <DialogContent className="sm:max-w-[400px] rounded-3xl p-6">
                  <h2 className="text-2xl font-black mb-6">Assign Shift</h2>
                  <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <Label className="text-[11px] font-bold text-gray-400 uppercase ml-1">Employee</Label>
+                      <Label className="text-[11px] font-bold text-gray-400 uppercase ml-1">Staff Member</Label>
                       <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
                         <SelectTrigger className="h-11 rounded-xl bg-gray-50 border-transparent font-bold">
-                           <SelectValue>{employees.find(e => e.id === selectedEmployeeId)?.full_name || "Select"}</SelectValue>
+                           <SelectValue>{employees.find(e => e.id === selectedEmployeeId)?.full_name || "Select Staff"}</SelectValue>
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
                           {employees.map(e => <SelectItem key={e.id} value={e.id} className="rounded-lg">{e.full_name}</SelectItem>)}
@@ -275,71 +267,79 @@ export default function SchedulePage() {
                       </Select>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-[11px] font-bold text-gray-400 uppercase ml-1">Date</Label>
+                      <Label className="text-[11px] font-bold text-gray-400 uppercase ml-1">Shift Date</Label>
                       <Input type="date" className="h-11 rounded-xl bg-gray-50 font-bold" value={shiftDate} onChange={e => setShiftDate(e.target.value)} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <Label className="text-[11px] font-bold text-gray-400 uppercase ml-1">Clock In</Label>
+                        <Label className="text-[11px] font-bold text-gray-400 uppercase ml-1">In</Label>
                         <Input type="time" className="h-11 rounded-xl bg-gray-50 font-bold" value={startTime} onChange={e => setStartTime(e.target.value)} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[11px] font-bold text-gray-400 uppercase ml-1">Clock Out</Label>
+                        <Label className="text-[11px] font-bold text-gray-400 uppercase ml-1">Out</Label>
                         <Input type="time" className="h-11 rounded-xl bg-gray-50 font-bold" value={endTime} onChange={e => setEndTime(e.target.value)} />
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-[11px] font-bold text-gray-400 uppercase ml-1">Notes</Label>
+                      <Label className="text-[11px] font-bold text-gray-400 uppercase ml-1">Note</Label>
                       <Input placeholder="..." className="h-11 rounded-xl bg-gray-50 font-medium" value={note} onChange={e => setNote(e.target.value)} />
                     </div>
                  </div>
-                 <Button className="w-full h-12 rounded-xl bg-[#0071e3] mt-8 font-bold" onClick={handleAddShift}>Confirm</Button>
+                 <Button className="w-full h-12 rounded-xl bg-[#0071e3] mt-8 font-bold" onClick={handleAddShift}>Confirm Assignment</Button>
               </DialogContent>
             </Dialog>
           )}
         </div>
       </div>
 
+      {/* List View - Only shows dates with shifts in the range */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-gray-50/50">
-              <TableHead className="w-[180px] font-bold text-black py-4 pl-6 uppercase tracking-widest text-[11px]">Period</TableHead>
-              <TableHead className="font-bold text-black py-4 uppercase tracking-widest text-[11px]">Daily Staffing</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {viewDays.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={2} className="py-20 text-center text-gray-300 font-bold uppercase tracking-widest text-sm">
-                  Invalid Date Range Selected
-                </TableCell>
+        {sortedDates.length === 0 ? (
+          <div className="py-20 text-center flex flex-col items-center justify-center gap-4">
+             <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-300">
+                <FileText className="h-8 w-8" />
+             </div>
+             <p className="font-bold text-gray-400 uppercase tracking-widest text-sm">No shifts found in this range</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50/50">
+                <TableHead className="w-[200px] font-bold text-black py-4 pl-8 uppercase tracking-widest text-[11px]">Date</TableHead>
+                <TableHead className="font-bold text-black py-4 uppercase tracking-widest text-[11px]">Staff & Times</TableHead>
               </TableRow>
-            ) : (
-              viewDays.map((day) => {
-                const dayShifts = shifts.filter(s => isSameDay(parseISO(s.start_time), day));
-                const isToday = isDateToday(day);
+            </TableHeader>
+            <TableBody>
+              {sortedDates.map((dateKey) => {
+                const dateShifts = groupedShifts[dateKey];
+                const displayDate = parseISO(dateKey);
+                const isToday = isDateToday(displayDate);
+                
                 return (
-                  <TableRow key={day.toISOString()} className={cn("border-gray-50", isToday && "bg-blue-50/20")}>
-                    <TableCell className="py-6 pl-6 align-top">
+                  <TableRow key={dateKey} className={cn("border-gray-50", isToday && "bg-blue-50/20")}>
+                    <TableCell className="py-8 pl-8 align-top">
                       <div className="flex flex-col">
-                        <span className={cn("text-[10px] font-black uppercase tracking-widest", isToday ? "text-[#0071e3]" : "text-gray-400")}>{format(day, 'EEEE')}</span>
-                        <span className={cn("text-2xl font-black", isToday ? "text-[#0071e3]" : "text-black")}>{format(day, 'dd MMM')}</span>
+                        <span className={cn("text-[10px] font-black uppercase tracking-widest", isToday ? "text-[#0071e3]" : "text-gray-400")}>{format(displayDate, 'EEEE')}</span>
+                        <span className={cn("text-2xl font-black", isToday ? "text-[#0071e3]" : "text-black")}>{format(displayDate, 'MMM dd, yyyy')}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="py-6 pr-6 align-top">
-                      <div className="flex flex-wrap gap-3">
-                        {dayShifts.map((shift) => (
-                          <div key={shift.id} className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm flex items-center gap-4 min-w-[280px] group transition-all hover:border-blue-200">
-                            <div className="w-10 h-10 rounded-lg bg-black text-white flex items-center justify-center font-black text-sm">{shift.employee?.full_name?.charAt(0)}</div>
+                    <TableCell className="py-8 pr-8 align-top">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {dateShifts.map((shift: any) => (
+                          <div key={shift.id} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex items-center gap-4 group transition-all hover:border-blue-200">
+                            <div className="w-10 h-10 rounded-lg bg-[#0071e3] text-white flex items-center justify-center font-black text-sm">{shift.employee?.full_name?.charAt(0)}</div>
                             <div className="flex-1 min-w-0">
-                               <p className="font-bold text-black text-[14px] truncate">{shift.employee?.full_name}</p>
-                               <div className="flex items-center gap-2 text-[11px] font-bold text-gray-500"><Clock className="h-3 w-3 text-[#0071e3]" />{format(parseISO(shift.start_time), 'HH:mm')} - {format(parseISO(shift.end_time), 'HH:mm')}</div>
+                               <p className="font-bold text-black text-[15px] truncate">{shift.employee?.full_name}</p>
+                               <div className="flex items-center gap-2 text-[12px] font-bold text-gray-500">
+                                  <Clock className="h-3.5 w-3.5 text-[#0071e3]" />
+                                  {format(parseISO(shift.start_time), 'HH:mm')} - {format(parseISO(shift.end_time), 'HH:mm')}
+                               </div>
+                               {shift.note && <p className="text-[11px] text-gray-400 mt-1 italic line-clamp-1">{shift.note}</p>}
                             </div>
                             {isAdmin && (
                               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => openEditDialog(shift)} className="p-1 hover:text-blue-500 text-gray-300"><Edit2 className="h-3.5 w-3.5" /></button>
-                                <button onClick={() => handleDeleteShift(shift.id)} className="p-1 hover:text-red-500 text-gray-300"><Trash2 className="h-3.5 w-3.5" /></button>
+                                <button onClick={() => openEditDialog(shift)} className="p-1.5 hover:text-blue-500 text-gray-300 transition-colors"><Edit2 className="h-4 w-4" /></button>
+                                <button onClick={() => handleDeleteShift(shift.id)} className="p-1.5 hover:text-red-500 text-gray-300 transition-colors"><Trash2 className="h-4 w-4" /></button>
                               </div>
                             )}
                           </div>
@@ -348,10 +348,10 @@ export default function SchedulePage() {
                     </TableCell>
                   </TableRow>
                 );
-              })
-            )}
-          </TableBody>
-        </Table>
+              })}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   );

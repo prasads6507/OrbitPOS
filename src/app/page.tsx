@@ -56,15 +56,17 @@ export default function LandingPage() {
             </div>
 
             {/* Premium Asset Preview */}
-            <div className="relative mx-auto max-w-6xl animate-in fade-in zoom-in-95 duration-1000 delay-300">
-              <Image 
-                src="/images/hero-branded.png" 
-                alt="OrbitPOS Interface" 
-                width={1200} 
-                height={800} 
-                className="rounded-3xl shadow-[0_40px_100px_rgba(0,0,0,0.1)] border border-white/50"
-                priority
-              />
+            <div className="relative mx-auto max-w-4xl animate-in fade-in zoom-in-95 duration-1000 delay-300">
+              <div className="relative p-2 rounded-[2.5rem] bg-gradient-to-b from-white/80 to-white/20 backdrop-blur-xl border border-white shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)]">
+                <Image 
+                  src="/images/hero-branded.png" 
+                  alt="OrbitPOS Interface" 
+                  width={1000} 
+                  height={600} 
+                  className="rounded-[2rem] shadow-sm w-full"
+                  priority
+                />
+              </div>
             </div>
           </div>
         </section>

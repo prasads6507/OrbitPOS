@@ -6,10 +6,53 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Mail, Phone, MapPin, Send, MessageSquare, Building2, Globe } from 'lucide-react';
+import { Mail, Phone, MapPin, Send, MessageSquare, Building2, Globe, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-
+import { useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 export default function ContactPage() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    company: '',
+    message: ''
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase.from('form_submissions').insert({
+        type: 'contact',
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        company: formData.company,
+        message: formData.message
+      });
+
+      if (error) throw error;
+
+      toast.success('Message sent successfully! We will get back to you soon.');
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        company: '',
+        message: ''
+      });
+    } catch (error) {
+      console.error('Contact form error:', error);
+      toast.error('Failed to send message. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-white text-[#1d1d1f] selection:bg-indigo-100 font-sans">
       <PublicHeader />
@@ -61,52 +104,83 @@ export default function ContactPage() {
             {/* Contact Form */}
             <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-1000 delay-400">
               <form 
-                action="https://formsubmit.co/orbitpossales@gmail.com" 
-                method="POST" 
+                onSubmit={handleSubmit}
                 className="space-y-6"
               >
-                {/* FormSubmit Configuration */}
-                <input type="hidden" name="_subject" value="New OrbitPOS Contact Lead" />
-                <input type="hidden" name="_template" value="table" />
-                <input type="hidden" name="_captcha" value="false" />
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="firstName" className="text-[13px] font-semibold text-gray-500 ml-1">First Name</Label>
-                    <Input id="firstName" name="First Name" placeholder="Jane" required className="h-12 rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all" />
+                    <Input 
+                      id="firstName" 
+                      placeholder="Jane" 
+                      required 
+                      className="h-12 rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all"
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName" className="text-[13px] font-semibold text-gray-500 ml-1">Last Name</Label>
-                    <Input id="lastName" name="Last Name" placeholder="Smith" required className="h-12 rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all" />
+                    <Input 
+                      id="lastName" 
+                      placeholder="Smith" 
+                      required 
+                      className="h-12 rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all"
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-[13px] font-semibold text-gray-500 ml-1">Email Address</Label>
-                  <Input id="email" name="Email" type="email" placeholder="jane@company.com" required className="h-12 rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all" />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="jane@company.com" 
+                    required 
+                    className="h-12 rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="company" className="text-[13px] font-semibold text-gray-500 ml-1">Company Name</Label>
-                  <Input id="company" name="Company" placeholder="Acme Inc." className="h-12 rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all" />
+                  <Input 
+                    id="company" 
+                    placeholder="Acme Inc." 
+                    className="h-12 rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all"
+                    value={formData.company}
+                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="message" className="text-[13px] font-semibold text-gray-500 ml-1">How can we help?</Label>
                   <Textarea 
                     id="message" 
-                    name="Message"
                     placeholder="Tell us about your business goals..." 
                     required 
                     className="min-h-[150px] rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all resize-none p-4" 
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   />
                 </div>
 
                 <Button 
                   type="submit" 
-                  className="w-full bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full h-14 text-lg font-bold transition-all hover:scale-[1.01] shadow-lg shadow-blue-500/10"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full h-14 text-lg font-bold transition-all hover:scale-[1.01] shadow-lg shadow-blue-500/10 flex items-center justify-center gap-2"
                 >
-                  Send Message
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    'Send Message'
+                  )}
                 </Button>
                 
                 <p className="text-center text-[13px] text-[#86868b] font-medium px-4">

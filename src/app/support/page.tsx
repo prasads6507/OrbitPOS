@@ -14,9 +14,13 @@ import {
   MessageCircle,
   ShieldCheck,
   Globe,
-  Database
+  Database,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 import Image from 'next/image';
 
@@ -29,6 +33,44 @@ export default function SupportPage() {
     '/support-mockup-5.png',
     '/support-mockup-6.png',
   ];
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    storeName: '',
+    email: '',
+    issueType: 'Technical Issue',
+    description: ''
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase.from('form_submissions').insert({
+        type: 'support',
+        store_name: formData.storeName,
+        email: formData.email,
+        issue_type: formData.issueType,
+        message: formData.description
+      });
+
+      if (error) throw error;
+
+      toast.success('Support ticket submitted successfully! We will get back to you within 2 hours.');
+      setFormData({
+        storeName: '',
+        email: '',
+        issueType: 'Technical Issue',
+        description: ''
+      });
+    } catch (error) {
+      console.error('Support form error:', error);
+      toast.error('Failed to submit ticket. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-white text-[#1d1d1f] selection:bg-indigo-100 font-sans">
@@ -162,27 +204,42 @@ export default function SupportPage() {
               {/* Right Side: Form */}
               <div className="p-12 md:p-20">
                 <form 
-                  action="https://formsubmit.co/orbitpossales@gmail.com" 
-                  method="POST" 
+                  onSubmit={handleSubmit}
                   className="space-y-6"
                 >
-                  <input type="hidden" name="_subject" value="New Support Ticket - OrbitPOS" />
-                  <input type="hidden" name="_template" value="table" />
-                  <input type="hidden" name="_captcha" value="false" />
-
                   <div className="space-y-2">
                     <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Store Name</label>
-                    <input name="Store Name" required placeholder="e.g. Blue Boutique" className="w-full h-14 rounded-2xl bg-gray-50 border-gray-100 px-6 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none" />
+                    <input 
+                      name="Store Name" 
+                      required 
+                      placeholder="e.g. Blue Boutique" 
+                      className="w-full h-14 rounded-2xl bg-gray-50 border-gray-100 px-6 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none" 
+                      value={formData.storeName}
+                      onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
-                    <input name="Email" type="email" required placeholder="manager@store.com" className="w-full h-14 rounded-2xl bg-gray-50 border-gray-100 px-6 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none" />
+                    <input 
+                      name="Email" 
+                      type="email" 
+                      required 
+                      placeholder="manager@store.com" 
+                      className="w-full h-14 rounded-2xl bg-gray-50 border-gray-100 px-6 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none" 
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Issue Type</label>
-                    <select name="Issue Type" className="w-full h-14 rounded-2xl bg-gray-50 border-gray-100 px-6 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none appearance-none">
+                    <select 
+                      name="Issue Type" 
+                      className="w-full h-14 rounded-2xl bg-gray-50 border-gray-100 px-6 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none appearance-none"
+                      value={formData.issueType}
+                      onChange={(e) => setFormData({ ...formData, issueType: e.target.value })}
+                    >
                       <option>Technical Issue</option>
                       <option>Billing Question</option>
                       <option>Hardware Setup</option>
@@ -192,11 +249,29 @@ export default function SupportPage() {
 
                   <div className="space-y-2">
                     <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Description</label>
-                    <textarea name="Description" required placeholder="How can we help you today?" className="w-full min-h-[150px] rounded-2xl bg-gray-50 border-gray-100 p-6 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none resize-none" />
+                    <textarea 
+                      name="Description" 
+                      required 
+                      placeholder="How can we help you today?" 
+                      className="w-full min-h-[150px] rounded-2xl bg-gray-50 border-gray-100 p-6 font-medium focus:ring-2 focus:ring-blue-500/20 transition-all outline-none resize-none" 
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    />
                   </div>
 
-                  <Button type="submit" className="w-full h-16 bg-black hover:bg-gray-800 text-white rounded-2xl text-lg font-bold transition-all shadow-xl shadow-black/10">
-                    Submit Support Ticket
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting}
+                    className="w-full h-16 bg-black hover:bg-gray-800 text-white rounded-2xl text-lg font-bold transition-all shadow-xl shadow-black/10 flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit Support Ticket'
+                    )}
                   </Button>
                 </form>
               </div>

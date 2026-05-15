@@ -10,7 +10,6 @@ import { PublicFooter } from '@/components/layout/public-footer';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { sendSubmissionEmail } from '@/app/actions/email';
 
 export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,11 +22,13 @@ export default function ContactPage() {
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
+    // 1. We DON'T call e.preventDefault() here to allow natural submission
+    // But we need to save to Supabase FIRST.
+    // So we stop the form, save, then manually submit.
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // 1. Save to Supabase (Database record)
       const { error } = await supabase.from('form_submissions').insert({
         type: 'contact',
         first_name: formData.firstName,
@@ -37,36 +38,16 @@ export default function ContactPage() {
         message: formData.message
       });
 
-      if (error) throw error;
-
-      // 2. Emergency fallback to Resend (Email notification)
-      const emailResult = await sendSubmissionEmail({
-        type: 'contact',
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        company: formData.company,
-        message: formData.message
-      });
-
-      if (!emailResult.success) {
-        console.warn('Email delivery error:', emailResult.error);
-        // We still show success to the user because it was saved to DB
+      if (error) {
+        console.warn('Supabase save failed, but proceeding with email:', error);
       }
 
-      toast.success('Message sent successfully! We will get back to you soon.');
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        company: '',
-        message: ''
-      });
+      // 2. Trigger the real form submission to FormSubmit
+      (e.target as HTMLFormElement).submit();
     } catch (error: any) {
       console.error('Contact form error:', error);
-      toast.error(`Submission error: ${error.message || 'Please try again'}`);
-    } finally {
-      setIsSubmitting(false);
+      // Even if DB fails, we try to submit the form anyway
+      (e.target as HTMLFormElement).submit();
     }
   };
 
@@ -77,7 +58,7 @@ export default function ContactPage() {
       <main className="flex-1 pt-32 pb-24">
         <div className="container px-8 mx-auto">
           {/* Hero Section */}
-          <div className="max-w-4xl mx-auto text-center mb-20 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <div className="max-w-4xl mx-auto text-center mb-20">
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-black mb-6">
               Let&apos;s start a <br />
               <span className="text-[#0071e3]">conversation.</span>
@@ -90,7 +71,7 @@ export default function ContactPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 max-w-6xl mx-auto">
             {/* Contact Information */}
-            <div className="space-y-12 animate-in fade-in slide-in-from-left-4 duration-1000 delay-200">
+            <div className="space-y-12">
               <div>
                 <h2 className="text-3xl font-bold mb-8 tracking-tight">Contact Information</h2>
                 <div className="space-y-6">
@@ -119,11 +100,19 @@ export default function ContactPage() {
             </div>
 
             {/* Contact Form */}
-            <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-1000 delay-400">
+            <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100">
               <form 
+                action="https://formsubmit.co/orbitpossales@gmail.com" 
+                method="POST"
                 onSubmit={handleSubmit}
                 className="space-y-6"
               >
+                {/* FormSubmit Configuration */}
+                <input type="hidden" name="_subject" value="New OrbitPOS Contact Lead" />
+                <input type="hidden" name="_template" value="table" />
+                <input type="hidden" name="_captcha" value="false" />
+                <input type="hidden" name="_next" value="https://orbit-pos.vercel.app/contact" />
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="firstName" className="text-[13px] font-semibold text-gray-500 ml-1">First Name</Label>
@@ -193,16 +182,9 @@ export default function ContactPage() {
                 <Button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="w-full h-14 rounded-2xl bg-black hover:bg-gray-900 text-white font-bold text-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 shadow-xl shadow-gray-200"
+                  className="w-full h-14 rounded-2xl bg-black hover:bg-gray-900 text-white font-bold text-lg transition-all shadow-xl"
                 >
-                  {isSubmitting ? (
-                    <div className="flex items-center gap-3">
-                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                      <span>Sending...</span>
-                    </div>
-                  ) : (
-                    "Send Message"
-                  )}
+                  {isSubmitting ? "Processing..." : "Send Message"}
                 </Button>
               </form>
             </div>

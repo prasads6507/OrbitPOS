@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { sendSubmissionEmail } from '@/app/actions/email';
 import { PublicHeader } from '@/components/layout/public-header';
 import { PublicFooter } from '@/components/layout/public-footer';
 import { LifeBuoy, Zap, ShieldCheck, Clock } from 'lucide-react';
@@ -23,7 +22,6 @@ export default function SupportPage() {
     setIsSubmitting(true);
 
     try {
-      // 1. Save to Supabase
       const { error } = await supabase.from('form_submissions').insert({
         type: 'support',
         store_name: formData.storeName,
@@ -32,33 +30,16 @@ export default function SupportPage() {
         message: formData.description
       });
 
-      if (error) throw error;
-
-      // 2. Emergency fallback to Resend
-      const emailResult = await sendSubmissionEmail({
-        type: 'support',
-        storeName: formData.storeName,
-        email: formData.email,
-        issueType: formData.issueType,
-        message: formData.description
-      });
-
-      if (!emailResult.success) {
-        console.warn('Email delivery error:', emailResult.error);
+      if (error) {
+        console.warn('Supabase save failed, but proceeding with email:', error);
       }
 
-      toast.success('Support ticket submitted successfully! We will get back to you within 2 hours.');
-      setFormData({
-        storeName: '',
-        email: '',
-        issueType: 'Technical Issue',
-        description: ''
-      });
+      // Trigger the real form submission to FormSubmit
+      (e.target as HTMLFormElement).submit();
     } catch (error: any) {
       console.error('Support form error:', error);
-      toast.error(`Submission error: ${error.message || 'Please try again'}`);
-    } finally {
-      setIsSubmitting(false);
+      // Fallback submission
+      (e.target as HTMLFormElement).submit();
     }
   };
 
@@ -98,12 +79,21 @@ export default function SupportPage() {
             <div className="lg:col-span-7 bg-[#f5f5f7] rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-2xl shadow-gray-100">
               <div className="p-12 md:p-20">
                 <form 
+                  action="https://formsubmit.co/orbitpossales@gmail.com" 
+                  method="POST"
                   onSubmit={handleSubmit}
                   className="space-y-6"
                 >
+                  {/* FormSubmit Configuration */}
+                  <input type="hidden" name="_subject" value="New OrbitPOS Support Ticket" />
+                  <input type="hidden" name="_template" value="table" />
+                  <input type="hidden" name="_captcha" value="false" />
+                  <input type="hidden" name="_next" value="https://orbit-pos.vercel.app/support" />
+
                   <div className="space-y-2">
                     <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Store Name</label>
                     <input 
+                      name="Store Name"
                       type="text"
                       required
                       placeholder="The Coffee House"
@@ -117,6 +107,7 @@ export default function SupportPage() {
                     <div className="space-y-2">
                       <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
                       <input 
+                        name="Email"
                         type="email"
                         required
                         placeholder="support@coffeehouse.com"
@@ -128,6 +119,7 @@ export default function SupportPage() {
                     <div className="space-y-2">
                       <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Issue Type</label>
                       <select 
+                        name="Issue Type"
                         className="w-full h-14 px-6 rounded-2xl bg-white border-none text-lg focus:ring-2 focus:ring-[#0071e3] transition-all appearance-none cursor-pointer"
                         value={formData.issueType}
                         onChange={(e) => setFormData({...formData, issueType: e.target.value})}
@@ -143,6 +135,7 @@ export default function SupportPage() {
                   <div className="space-y-2">
                     <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Description</label>
                     <textarea 
+                      name="Description"
                       required
                       rows={6}
                       placeholder="Tell us about the issue..."
@@ -155,9 +148,9 @@ export default function SupportPage() {
                   <button 
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full h-16 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-2xl text-xl font-bold transition-all active:scale-[0.98] disabled:opacity-50 shadow-lg shadow-blue-200"
+                    className="w-full h-16 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-2xl text-xl font-bold shadow-lg"
                   >
-                    {isSubmitting ? "Submitting..." : "Submit Support Ticket"}
+                    {isSubmitting ? "Processing..." : "Submit Support Ticket"}
                   </button>
                 </form>
               </div>

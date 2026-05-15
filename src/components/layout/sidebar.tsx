@@ -70,9 +70,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <Image 
               src="/logo.png" 
               alt="OrbitPOS Logo" 
-              width={180} 
-              height={60} 
-              className="h-12 w-auto transition-transform hover:scale-105" 
+              width={220} 
+              height={74} 
+              className="h-16 w-auto transition-transform hover:scale-105" 
             />
             <div className="flex items-center gap-3 px-2">
               <div className="w-8 h-8 bg-[#0071e3] rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/10 shrink-0">

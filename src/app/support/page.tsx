@@ -21,7 +21,6 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { submitToFormSubmit } from '@/app/actions/formsubmit';
 
 import Image from 'next/image';
 
@@ -58,30 +57,12 @@ export default function SupportPage() {
 
       if (error) throw error;
 
-      // Send email via FormSubmit Server Action (bypasses CORS)
-      const formResult = await submitToFormSubmit("orbitpossales@gmail.com", {
-        _subject: "New OrbitPOS Support Ticket",
-        "Store Name": formData.storeName,
-        "Email": formData.email,
-        "Issue Type": formData.issueType,
-        "Description": formData.description
-      });
-
-      if (!formResult.success) {
-        console.warn('FormSubmit failed:', formResult.error);
-        // We still show success because it was saved to the DB
-      }
-
-      toast.success('Support ticket submitted successfully! We will get back to you within 2 hours.');
-      setFormData({
-        storeName: '',
-        email: '',
-        issueType: 'Technical Issue',
-        description: ''
-      });
+      // The form will now submit naturally via its 'action' attribute
+      // to ensure FormSubmit can show the activation page if needed.
     } catch (error: any) {
       console.error('Support form error:', error);
-      toast.error(`Failed to submit ticket: ${error.message || 'Unknown error'}`);
+      toast.error(`Failed to save ticket: ${error.message || 'Unknown error'}`);
+      e.preventDefault(); // Stop form submission if DB save fails
     } finally {
       setIsSubmitting(false);
     }
@@ -219,9 +200,14 @@ export default function SupportPage() {
               {/* Right Side: Form */}
               <div className="p-12 md:p-20">
                 <form 
+                  action="https://formsubmit.co/orbitpossales@gmail.com" 
+                  method="POST"
                   onSubmit={handleSubmit}
                   className="space-y-6"
                 >
+                  <input type="hidden" name="_subject" value="New OrbitPOS Support Ticket" />
+                  <input type="hidden" name="_template" value="table" />
+                  <input type="hidden" name="_captcha" value="false" />
                   <div className="space-y-2">
                     <label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Store Name</label>
                     <input 

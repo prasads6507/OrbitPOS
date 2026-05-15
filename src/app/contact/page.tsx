@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { submitToFormSubmit } from '@/app/actions/formsubmit';
+import { useRouter } from 'next/navigation';
 export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -38,32 +38,12 @@ export default function ContactPage() {
 
       if (error) throw error;
 
-      // Send email via FormSubmit Server Action (bypasses CORS)
-      const formResult = await submitToFormSubmit("orbitpossales@gmail.com", {
-        _subject: "New OrbitPOS Contact Lead",
-        "First Name": formData.firstName,
-        "Last Name": formData.lastName,
-        "Email": formData.email,
-        "Company": formData.company,
-        "Message": formData.message
-      });
-
-      if (!formResult.success) {
-        console.warn('FormSubmit failed:', formResult.error);
-        // We still show success because it was saved to the DB
-      }
-
-      toast.success('Message sent successfully! We will get back to you soon.');
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        company: '',
-        message: ''
-      });
+      // The form will now submit naturally via its 'action' attribute
+      // to ensure FormSubmit can show the activation page if needed.
     } catch (error: any) {
       console.error('Contact form error:', error);
-      toast.error(`Failed to send message: ${error.message || 'Unknown error'}`);
+      toast.error(`Failed to save record: ${error.message || 'Unknown error'}`);
+      e.preventDefault(); // Stop the form submission if DB save fails
     } finally {
       setIsSubmitting(false);
     }
@@ -120,14 +100,20 @@ export default function ContactPage() {
             {/* Contact Form */}
             <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-gray-100 animate-in fade-in slide-in-from-right-4 duration-1000 delay-400">
               <form 
+                action="https://formsubmit.co/orbitpossales@gmail.com" 
+                method="POST"
                 onSubmit={handleSubmit}
                 className="space-y-6"
               >
+                <input type="hidden" name="_subject" value="New OrbitPOS Contact Lead" />
+                <input type="hidden" name="_template" value="table" />
+                <input type="hidden" name="_captcha" value="false" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="firstName" className="text-[13px] font-semibold text-gray-500 ml-1">First Name</Label>
                     <Input 
                       id="firstName" 
+                      name="First Name"
                       placeholder="Jane" 
                       required 
                       className="h-12 rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all"
@@ -139,6 +125,7 @@ export default function ContactPage() {
                     <Label htmlFor="lastName" className="text-[13px] font-semibold text-gray-500 ml-1">Last Name</Label>
                     <Input 
                       id="lastName" 
+                      name="Last Name"
                       placeholder="Smith" 
                       required 
                       className="h-12 rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all"
@@ -152,6 +139,7 @@ export default function ContactPage() {
                   <Label htmlFor="email" className="text-[13px] font-semibold text-gray-500 ml-1">Email Address</Label>
                   <Input 
                     id="email" 
+                    name="Email"
                     type="email" 
                     placeholder="jane@company.com" 
                     required 
@@ -165,6 +153,7 @@ export default function ContactPage() {
                   <Label htmlFor="company" className="text-[13px] font-semibold text-gray-500 ml-1">Company Name</Label>
                   <Input 
                     id="company" 
+                    name="Company Name"
                     placeholder="Acme Inc." 
                     className="h-12 rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all"
                     value={formData.company}
@@ -176,6 +165,7 @@ export default function ContactPage() {
                   <Label htmlFor="message" className="text-[13px] font-semibold text-gray-500 ml-1">How can we help?</Label>
                   <Textarea 
                     id="message" 
+                    name="Message"
                     placeholder="Tell us about your business goals..." 
                     required 
                     className="min-h-[150px] rounded-2xl border-gray-100 bg-gray-50/50 focus:bg-white transition-all resize-none p-4" 

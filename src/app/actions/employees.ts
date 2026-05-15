@@ -43,8 +43,8 @@ export async function createEmployee(formData: {
     });
 
     if (authError) {
-      console.error('Auth Creation Error:', authError);
-      throw authError;
+      console.error('CRITICAL: Auth Creation Error:', JSON.stringify(authError, null, 2));
+      throw new Error(authError.message);
     }
 
     // 2. Create profile entry
@@ -60,16 +60,16 @@ export async function createEmployee(formData: {
       });
 
     if (profileError) {
-      console.error('Profile Insert Error:', profileError);
+      console.error('CRITICAL: Profile Insert Error:', JSON.stringify(profileError, null, 2));
       // Cleanup auth user if profile creation fails
       await getSupabaseAdmin().auth.admin.deleteUser(authData.user.id);
-      throw profileError;
+      throw new Error(profileError.message);
     }
 
-    console.log('Employee created successfully!');
+    console.log('SUCCESS: Employee created successfully!');
     return { success: true };
   } catch (error: any) {
-    console.error('CRITICAL: Error creating employee:', error);
+    console.error('CRITICAL: Employee Creation Exception:', error);
     return { error: error.message || 'Failed to create employee. Check server logs.' };
   }
 }

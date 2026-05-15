@@ -283,19 +283,19 @@ export default function DashboardPage() {
               <span className="text-[11px] font-bold text-gray-500 uppercase">Revenue</span>
             </div>
           </div>
-          <div className="h-[300px] w-full">
+          <div className="h-[300px] w-full min-h-[300px]">
             {loading ? (
               <div className="h-full flex items-center justify-center text-gray-300">
                 <RefreshCw className="h-8 w-8 animate-spin" />
               </div>
-            ) : chartData.every(d => d.revenue === 0) ? (
+            ) : chartData.length === 0 || chartData.every(d => d.revenue === 0) ? (
               <div className="h-full flex flex-col items-center justify-center text-gray-300">
                 <TrendingUp className="h-12 w-12 mb-3 opacity-30" />
                 <p className="font-medium text-gray-400">No orders yet</p>
                 <p className="text-[13px]">Complete a sale in POS to see data here.</p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">

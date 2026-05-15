@@ -21,11 +21,18 @@ export async function createEmployee(formData: {
   store_id: string;
   password?: string;
 }) {
-  try {
+    // Validate Pay Rate
+    const payRate = Number(formData.hourly_rate);
+    if (isNaN(payRate)) throw new Error('Invalid hourly rate provided');
+
+    console.log('--- Creating Employee ---');
+    console.log('Email:', formData.email);
+    console.log('Store ID:', formData.store_id);
+
     // 1. Create user in Auth
     const { data: authData, error: authError } = await getSupabaseAdmin().auth.admin.createUser({
       email: formData.email,
-      password: formData.password || 'OrbitPOS123!', // Default password if not provided
+      password: formData.password || 'OrbitPOS123!', 
       email_confirm: true,
       user_metadata: {
         full_name: formData.full_name,
@@ -34,7 +41,10 @@ export async function createEmployee(formData: {
       }
     });
 
-    if (authError) throw authError;
+    if (authError) {
+      console.error('Auth Creation Error:', authError);
+      throw authError;
+    }
 
     // 2. Create profile entry
     const { error: profileError } = await getSupabaseAdmin()
@@ -44,20 +54,22 @@ export async function createEmployee(formData: {
         email: formData.email,
         full_name: formData.full_name,
         role: formData.role,
-        hourly_rate: formData.hourly_rate,
+        hourly_rate: payRate,
         store_id: formData.store_id,
       });
 
     if (profileError) {
+      console.error('Profile Insert Error:', profileError);
       // Cleanup auth user if profile creation fails
       await getSupabaseAdmin().auth.admin.deleteUser(authData.user.id);
       throw profileError;
     }
 
+    console.log('Employee created successfully!');
     return { success: true };
   } catch (error: any) {
-    console.error('Error creating employee:', error);
-    return { error: error.message || 'Failed to create employee' };
+    console.error('CRITICAL: Error creating employee:', error);
+    return { error: error.message || 'Failed to create employee. Check server logs.' };
   }
 }
 

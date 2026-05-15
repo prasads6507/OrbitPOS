@@ -151,7 +151,10 @@ export function CreateEmployeeDialog({ onSuccess }: CreateEmployeeDialogProps) {
                     placeholder="25.00" 
                     className="pl-12 h-12 bg-gray-50 border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-[#0071e3]/10 transition-all font-bold"
                     value={formData.hourly_rate || ''}
-                    onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) })}
+                    onChange={(e) => {
+                      const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                      setFormData({ ...formData, hourly_rate: val });
+                    }}
                     required
                   />
                 </div>

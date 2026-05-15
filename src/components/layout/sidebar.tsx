@@ -66,14 +66,24 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         isOpen ? "translate-x-0 scale-100 opacity-100" : "-translate-x-full opacity-0 lg:translate-x-0 lg:opacity-100"
       )}>
         <div className="mb-10 px-2 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-3">
+          <Link href="/dashboard" className="flex flex-col gap-4">
             <Image 
               src="/logo.png" 
               alt="OrbitPOS Logo" 
-              width={140} 
-              height={40} 
-              className="h-10 w-auto transition-transform hover:scale-105" 
+              width={180} 
+              height={60} 
+              className="h-12 w-auto transition-transform hover:scale-105" 
             />
+            <div className="flex items-center gap-3 px-2">
+              <div className="w-8 h-8 bg-[#0071e3] rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/10 shrink-0">
+                <span className="text-white font-black text-xs">
+                  {profile ? ((profile as any)?.stores?.name?.charAt(0) || 'O') : '...'}
+                </span>
+              </div>
+              <span className="text-sm font-black tracking-tight text-black font-heading truncate">
+                {profile ? ((profile as any)?.stores?.name || 'OrbitPOS') : 'Loading...'}
+              </span>
+            </div>
           </Link>
           
           <Button 

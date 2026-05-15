@@ -40,9 +40,9 @@ export function PublicHeader() {
           <Image 
             src="/logo.png" 
             alt="OrbitPOS Logo" 
-            width={120} 
-            height={40} 
-            className="h-10 w-auto transition-transform group-hover:scale-105" 
+            width={160} 
+            height={54} 
+            className="h-12 w-auto transition-transform group-hover:scale-105" 
           />
         </Link>
         

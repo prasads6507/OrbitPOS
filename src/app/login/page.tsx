@@ -23,9 +23,9 @@ export default function LoginPage() {
               <Image 
                 src="/logo.png" 
                 alt="OrbitPOS Logo" 
-                width={180} 
-                height={60} 
-                className="mx-auto mb-6 transform hover:scale-105 transition-transform duration-500" 
+                width={240} 
+                height={80} 
+                className="mx-auto mb-8 transform hover:scale-105 transition-transform duration-500" 
               />
               <p className="text-[14px] text-[#505055] font-medium">
                 Sign in to your workspace

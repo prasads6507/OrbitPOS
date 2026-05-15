@@ -50,20 +50,28 @@ export async function sendSubmissionEmail(data: SubmissionData) {
     `;
 
     const { data: resData, error } = await resend.emails.send({
-      from: 'OrbitPOS <onboarding@resend.dev>', // Default Resend test domain
+      from: 'OrbitPOS <onboarding@resend.dev>',
       to: 'orbitpossales@gmail.com',
       subject: subject,
       html: html,
     });
 
     if (error) {
-      console.error('Resend error:', error);
-      return { success: false, error: error.message };
+      console.error('Resend API Error:', error);
+      return { 
+        success: false, 
+        error: error.message,
+        name: error.name
+      };
     }
 
     return { success: true, data: resData };
   } catch (error: any) {
-    console.error('Email action error:', error);
-    return { success: false, error: error.message };
+    console.error('Email action exception:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Unknown error occurred',
+      name: error.name || 'Exception'
+    };
   }
 }

@@ -39,7 +39,7 @@ export default function ContactPage() {
       if (error) throw error;
 
       // Send email notification
-      await sendSubmissionEmail({
+      const emailResult = await sendSubmissionEmail({
         type: 'contact',
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -48,7 +48,12 @@ export default function ContactPage() {
         message: formData.message
       });
 
-      toast.success('Message sent successfully! We will get back to you soon.');
+      if (!emailResult.success) {
+        console.warn('Email notification failed:', emailResult.error);
+        toast.error(`Message saved to database, but email notification failed: ${emailResult.error}`);
+      } else {
+        toast.success('Message sent successfully! We will get back to you soon.');
+      }
       setFormData({
         firstName: '',
         lastName: '',

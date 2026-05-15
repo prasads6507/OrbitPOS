@@ -11,7 +11,6 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { sendSubmissionEmail } from '@/app/actions/email';
 export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -38,22 +37,24 @@ export default function ContactPage() {
 
       if (error) throw error;
 
-      // Send email notification
-      const emailResult = await sendSubmissionEmail({
-        type: 'contact',
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        company: formData.company,
-        message: formData.message
+      // Send email via FormSubmit AJAX
+      await fetch("https://formsubmit.co/ajax/orbitpossales@gmail.com", {
+        method: "POST",
+        headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            _subject: "New OrbitPOS Contact Lead",
+            "First Name": formData.firstName,
+            "Last Name": formData.lastName,
+            "Email": formData.email,
+            "Company": formData.company,
+            "Message": formData.message
+        })
       });
 
-      if (!emailResult.success) {
-        console.warn('Email notification failed:', emailResult.error);
-        toast.error(`Message saved to database, but email notification failed: ${emailResult.error}`);
-      } else {
-        toast.success('Message sent successfully! We will get back to you soon.');
-      }
+      toast.success('Message sent successfully! We will get back to you soon.');
       setFormData({
         firstName: '',
         lastName: '',

@@ -217,7 +217,7 @@ export default function StockTransferPage() {
         <div className="space-y-6 mb-8">
           <div className="space-y-2">
             <Label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Destination Store</Label>
-            <Select value={targetStoreId} onValueChange={setTargetStoreId}>
+            <Select value={targetStoreId} onValueChange={(val) => setTargetStoreId(val || '')}>
               <SelectTrigger className="h-14 bg-[#f5f5f7] border-transparent rounded-2xl font-bold">
                 <SelectValue placeholder="Select a store" />
               </SelectTrigger>

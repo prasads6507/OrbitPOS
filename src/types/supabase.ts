@@ -75,8 +75,13 @@ export interface Database {
           category_id: string | null
           image_url: string | null
           is_active: boolean
+          vendor_name: string | null
+          brand_name: string | null
+          color: string | null
+          product_type: 'gadget' | 'non-gadget' | null
           created_at: string
           updated_at: string
+          store_id: string | null
         }
         Insert: {
           id?: string
@@ -91,8 +96,13 @@ export interface Database {
           category_id?: string | null
           image_url?: string | null
           is_active?: boolean
+          vendor_name?: string | null
+          brand_name?: string | null
+          color?: string | null
+          product_type?: 'gadget' | 'non-gadget' | null
           created_at?: string
           updated_at?: string
+          store_id?: string | null
         }
         Update: {
           id?: string
@@ -107,8 +117,13 @@ export interface Database {
           category_id?: string | null
           image_url?: string | null
           is_active?: boolean
+          vendor_name?: string | null
+          brand_name?: string | null
+          color?: string | null
+          product_type?: 'gadget' | 'non-gadget' | null
           created_at?: string
           updated_at?: string
+          store_id?: string | null
         }
       }
       categories: {
@@ -321,6 +336,64 @@ export interface Database {
           receipt_header?: string | null
           receipt_footer?: string | null
           updated_at?: string
+        }
+      }
+      vendor_invoices: {
+        Row: {
+          id: string
+          vendor_name: string
+          invoice_url: string
+          store_id: string | null
+          invoice_date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          vendor_name: string
+          invoice_url: string
+          store_id?: string | null
+          invoice_date?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          vendor_name?: string
+          invoice_url?: string
+          store_id?: string | null
+          invoice_date?: string
+          created_at?: string
+        }
+      }
+      stock_transfers: {
+        Row: {
+          id: string
+          source_store_id: string
+          target_store_id: string
+          items: Json
+          status: 'pending' | 'confirmed' | 'cancelled'
+          created_at: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+        }
+        Insert: {
+          id?: string
+          source_store_id: string
+          target_store_id: string
+          items: Json
+          status?: 'pending' | 'confirmed' | 'cancelled'
+          created_at?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+        }
+        Update: {
+          id?: string
+          source_store_id?: string
+          target_store_id?: string
+          items?: Json
+          status?: 'pending' | 'confirmed' | 'cancelled'
+          created_at?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
         }
       }
     }

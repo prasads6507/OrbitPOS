@@ -28,6 +28,10 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
     barcode: product?.barcode || '',
     price: product?.price?.toString() || '0',
     description: product?.description || '',
+    vendor_name: product?.vendor_name || '',
+    brand_name: product?.brand_name || '',
+    color: product?.color || '',
+    product_type: product?.product_type || 'non-gadget',
   });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,6 +81,10 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
           barcode: formData.barcode || null,
           price: parseFloat(formData.price),
           description: formData.description,
+          vendor_name: formData.vendor_name || null,
+          brand_name: formData.brand_name || null,
+          color: formData.color || null,
+          product_type: formData.product_type,
           image_url: image_url,
         })
         .eq('id', product.id);
@@ -177,6 +185,52 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-vendor_name" className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Vendor Name</Label>
+              <Input 
+                id="edit-vendor_name" 
+                placeholder="e.g. Apple Inc." 
+                className="h-14 bg-[#f5f5f7] border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-[#0071e3]/10 font-bold"
+                value={formData.vendor_name}
+                onChange={(e) => setFormData({...formData, vendor_name: e.target.value})}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-brand_name" className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Brand Name</Label>
+              <Input 
+                id="edit-brand_name" 
+                placeholder="e.g. iPhone" 
+                className="h-14 bg-[#f5f5f7] border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-[#0071e3]/10 font-bold"
+                value={formData.brand_name}
+                onChange={(e) => setFormData({...formData, brand_name: e.target.value})}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-color" className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Color</Label>
+              <Input 
+                id="edit-color" 
+                placeholder="e.g. Space Gray" 
+                className="h-14 bg-[#f5f5f7] border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-[#0071e3]/10 font-bold"
+                value={formData.color}
+                onChange={(e) => setFormData({...formData, color: e.target.value})}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-product_type" className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Type</Label>
+              <select 
+                id="edit-product_type"
+                className="w-full h-14 bg-[#f5f5f7] border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-[#0071e3]/10 font-bold px-4 outline-none appearance-none cursor-pointer"
+                value={formData.product_type}
+                onChange={(e) => setFormData({...formData, product_type: e.target.value as any})}
+              >
+                <option value="non-gadget">Non-Gadget</option>
+                <option value="gadget">Gadget</option>
+              </select>
             </div>
           </div>
           

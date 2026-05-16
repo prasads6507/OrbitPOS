@@ -163,7 +163,16 @@ export default function POSPage() {
                   </div>
                   
                   <div className={cn("p-5 relative z-10", viewMode === 'list' && "flex-1 p-0")}>
-                    <h3 className="font-bold text-black group-hover:text-[#0071e3] transition-colors truncate text-[15px]">{product.name}</h3>
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="font-bold text-black group-hover:text-[#0071e3] transition-colors truncate text-[15px]">{product.name}</h3>
+                      <Badge variant="outline" className={cn(
+                        "text-[9px] font-black h-4 px-1 rounded-sm",
+                        product.product_type === 'gadget' ? "bg-purple-50 text-purple-600 border-purple-100" : "bg-blue-50 text-blue-600 border-blue-100"
+                      )}>
+                        {product.product_type || 'non-gadget'}
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight mb-2 truncate">{product.vendor_name || 'Generic Vendor'}</p>
                     <div className="flex items-center justify-between mt-1">
                       <div className="flex flex-col">
                         <p className="text-xl font-black text-black">${product.price.toFixed(2)}</p>

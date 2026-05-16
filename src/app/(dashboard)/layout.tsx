@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
+import { TransferConfirmationPopup } from '@/components/inventory/transfer-confirmation-popup';
 
 export default function DashboardLayout({
   children,
@@ -42,6 +43,7 @@ export default function DashboardLayout({
         <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-white">
           {children}
         </main>
+        <TransferConfirmationPopup />
       </div>
     </div>
   );

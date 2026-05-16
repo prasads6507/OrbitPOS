@@ -90,7 +90,9 @@ export default function ProductsPage() {
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.sku.toLowerCase().includes(search.toLowerCase())
+    p.sku.toLowerCase().includes(search.toLowerCase()) ||
+    (p.vendor_name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.brand_name || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const deleteProduct = async (id: string) => {
@@ -189,6 +191,8 @@ export default function ProductsPage() {
             <TableRow className="border-gray-50">
               <TableHead className="font-bold text-black pl-8">Item</TableHead>
               <TableHead className="font-bold text-black">SKU</TableHead>
+              <TableHead className="font-bold text-black">Vendor/Brand</TableHead>
+              <TableHead className="font-bold text-black">Type</TableHead>
               <TableHead className="font-bold text-black text-right">Price</TableHead>
               <TableHead className="font-bold text-black text-right">Stock</TableHead>
               <TableHead className="font-bold text-black">Status</TableHead>
@@ -198,13 +202,13 @@ export default function ProductsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-20 text-gray-400">
+                <TableCell colSpan={8} className="text-center py-20 text-gray-400">
                   <RefreshCw className="h-8 w-8 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
             ) : filteredProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-20">
+                <TableCell colSpan={8} className="text-center py-20">
                   <Package className="h-16 w-16 mx-auto mb-4 text-gray-100" />
                   <p className="text-gray-400 font-bold">No products found</p>
                 </TableCell>
@@ -235,6 +239,20 @@ export default function ProductsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="font-mono text-[12px] text-gray-500">{product.sku}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <p className="font-bold text-black text-[13px]">{product.vendor_name || '-'}</p>
+                      <p className="text-[11px] text-gray-400 font-medium">{product.brand_name || '-'}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={cn(
+                      "font-bold uppercase text-[10px]",
+                      product.product_type === 'gadget' ? "bg-purple-50 text-purple-600 border-purple-100" : "bg-blue-50 text-blue-600 border-blue-100"
+                    )}>
+                      {product.product_type || 'non-gadget'}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right font-black text-black text-lg">
                     ${product.price.toFixed(2)}
                   </TableCell>

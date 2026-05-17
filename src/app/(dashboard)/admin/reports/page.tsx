@@ -50,8 +50,11 @@ import { downloadCSV } from '@/lib/export';
 
 import { useAuthStore } from '@/store/useAuthStore';
 
+import { useActiveStore } from '@/store/useActiveStore';
+
 export default function ReportsPage() {
   const { profile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   const [loading, setLoading] = useState(true);
   const [salesByDay, setSalesByDay] = useState<any[]>([]);
   const [allOrders, setAllOrders] = useState<any[]>([]);
@@ -65,14 +68,16 @@ export default function ReportsPage() {
   const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
+  const storeToUse = activeStoreId || profile?.store_id;
+
   useEffect(() => {
-    if (profile?.store_id) {
+    if (storeToUse) {
       fetchReportData(selectedDate, timeRange);
     }
-  }, [profile, selectedDate, timeRange]);
+  }, [profile, activeStoreId, storeToUse, selectedDate, timeRange]);
 
   const fetchReportData = async (dateStr: string, range: string) => {
-    if (!profile?.store_id) return;
+    if (!storeToUse) return;
     setLoading(true);
     try {
       const targetDate = new Date(dateStr + 'T00:00:00');
@@ -97,7 +102,7 @@ export default function ReportsPage() {
       const { data: orders } = await supabase
         .from('orders')
         .select('total_amount, refunded_amount, created_at, payment_status')
-        .eq('store_id', profile.store_id)
+        .eq('store_id', storeToUse)
         .gte('created_at', startDate)
         .lt('created_at', endDate)
         .neq('payment_status', 'voided');
@@ -126,7 +131,7 @@ export default function ReportsPage() {
           const { data: dOrders } = await supabase
             .from('orders')
             .select('total_amount, refunded_amount')
-            .eq('store_id', profile.store_id)
+            .eq('store_id', storeToUse)
             .gte('created_at', dStart)
             .lt('created_at', dNext)
             .neq('payment_status', 'voided');
@@ -145,7 +150,7 @@ export default function ReportsPage() {
           const { data: wOrders } = await supabase
             .from('orders')
             .select('total_amount, refunded_amount')
-            .eq('store_id', profile.store_id)
+            .eq('store_id', storeToUse)
             .gte('created_at', startOfDay(wStart).toISOString())
             .lt('created_at', endOfDay(wEnd).toISOString())
             .neq('payment_status', 'voided');
@@ -165,7 +170,7 @@ export default function ReportsPage() {
           const { data: mOrders } = await supabase
             .from('orders')
             .select('total_amount, refunded_amount')
-            .eq('store_id', profile.store_id)
+            .eq('store_id', storeToUse)
             .gte('created_at', mStart)
             .lt('created_at', mEnd)
             .neq('payment_status', 'voided');
@@ -183,7 +188,7 @@ export default function ReportsPage() {
       const { data: items } = await supabase
         .from('order_items')
         .select('quantity, total_price, products(name), orders!inner(created_at)')
-        .eq('store_id', profile.store_id)
+        .eq('store_id', storeToUse)
         .gte('orders.created_at', startDate)
         .lt('orders.created_at', endDate);
       

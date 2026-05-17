@@ -30,8 +30,11 @@ type Product = Database['public']['Tables']['products']['Row'];
 
 import { useAuthStore } from '@/store/useAuthStore';
 
+import { useActiveStore } from '@/store/useActiveStore';
+
 export default function POSPage() {
   const { profile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -51,8 +54,10 @@ export default function POSPage() {
   const [initialMethod, setInitialMethod] = useState<'cash' | 'card'>('cash');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const storeToUse = activeStoreId || profile?.store_id;
+
   useEffect(() => {
-    if (profile?.store_id) {
+    if (storeToUse) {
       fetchProducts();
     }
 
@@ -64,15 +69,15 @@ export default function POSPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [profile]);
+  }, [profile, activeStoreId, storeToUse]);
 
   const fetchProducts = async () => {
-    if (!profile?.store_id) return;
+    if (!storeToUse) return;
     setLoading(true);
     const { data } = await supabase
       .from('products')
       .select('*')
-      .eq('store_id', profile.store_id)
+      .eq('store_id', storeToUse)
       .eq('is_active', true);
 
     if (data) setProducts(data);

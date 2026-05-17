@@ -36,6 +36,7 @@ import StripePayment from './stripe-payment';
 import { ReceiptPrinter } from './receipt-printer';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useActiveStore } from '@/store/useActiveStore';
 
 type CheckoutStep = 'selection' | 'cash-input' | 'card-payment' | 'processing' | 'success' | 'failed';
 
@@ -76,8 +77,10 @@ export function CheckoutDialog({
   discount?: number,
   discountType?: 'amount' | 'percentage',
   initialMethod?: 'cash' | 'card'
+  storeId?: string;
 }) {
   const { profile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   const { clearCart } = useCartStore();
   const [step, setStep] = useState<CheckoutStep>('selection');
   const [method, setMethod] = useState<'cash' | 'card'>('cash');
@@ -89,6 +92,8 @@ export function CheckoutDialog({
   const [stripeIntentId, setStripeIntentId] = useState('');
   const [loading, setLoading] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+
+  const storeToUse = activeStoreId || profile?.store_id;
 
   // Reset state when dialog closes
   useEffect(() => {
@@ -119,7 +124,7 @@ export function CheckoutDialog({
   };
 
   const finalizeOrder = async (stripeId?: string, last4?: string, brand?: string) => {
-    if (!profile?.store_id) {
+    if (!storeToUse) {
       toast.error('Store ID not found. Please log in again.');
       return;
     }
@@ -137,8 +142,8 @@ export function CheckoutDialog({
           discount_amount: discount,
           payment_method: method,
           payment_status: 'completed',
-          store_id: profile.store_id,
-          cashier_id: profile.id,
+          store_id: storeToUse,
+          cashier_id: profile?.id,
           stripe_payment_intent_id: stripeId || (method === 'card' ? stripeIntentId : null),
         })
         .select()
@@ -152,7 +157,7 @@ export function CheckoutDialog({
         quantity: item.quantity,
         unit_price: item.price,
         total_price: item.price * item.quantity,
-        store_id: profile.store_id,
+        store_id: storeToUse,
       }));
 
       const { error: itemsError } = await supabase
@@ -174,7 +179,7 @@ export function CheckoutDialog({
             product_id: item.id,
             change_amount: -item.quantity,
             reason: 'sale',
-            store_id: profile.store_id,
+            store_id: storeToUse,
           });
       }
 
@@ -217,11 +222,11 @@ export function CheckoutDialog({
     } else {
       try {
         setLoading(true);
-        if (!profile?.store_id) throw new Error('Store ID missing');
+        if (!storeToUse) throw new Error('Store ID missing');
         
         const [intentRes, keyRes] = await Promise.all([
-          createPaymentIntent(total, profile.store_id, profile.store_name || 'OrbitPOS Store'),
-          getStorePublishableKey(profile.store_id)
+          createPaymentIntent(total, storeToUse, profile?.store_name || 'OrbitPOS Store'),
+          getStorePublishableKey(storeToUse)
         ]);
 
         setClientSecret(intentRes.clientSecret || '');

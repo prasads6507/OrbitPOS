@@ -22,10 +22,13 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 
+import { useActiveStore } from '@/store/useActiveStore';
+
 type SettingsTab = 'profile' | 'payments';
 
 export default function SettingsPage() {
   const { profile, fetchProfile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -40,6 +43,8 @@ export default function SettingsPage() {
     auto_print_receipt: true,
   });
 
+  const storeToUse = activeStoreId || profile?.store_id;
+
   useEffect(() => {
     if (profile) {
       setFormData({
@@ -48,11 +53,11 @@ export default function SettingsPage() {
         hourly_rate: profile.hourly_rate || 0,
       });
 
-      if (profile.role === 'admin' && profile.store_id) {
-        fetchStoreData(profile.store_id);
+      if (profile.role === 'admin' && storeToUse) {
+        fetchStoreData(storeToUse);
       }
     }
-  }, [profile]);
+  }, [profile, activeStoreId, storeToUse]);
 
   const fetchStoreData = async (storeId: string) => {
     const { data, error } = await supabase
@@ -97,7 +102,7 @@ export default function SettingsPage() {
 
   const handleSavePayments = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile?.store_id) return;
+    if (!storeToUse) return;
 
     setLoading(true);
     try {
@@ -108,7 +113,7 @@ export default function SettingsPage() {
           stripe_secret_key: storeSettings.stripe_secret_key,
           auto_print_receipt: storeSettings.auto_print_receipt,
         })
-        .eq('id', profile.store_id);
+        .eq('id', storeToUse);
 
       if (error) throw error;
       

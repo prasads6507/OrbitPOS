@@ -18,7 +18,7 @@ import { Plus, Loader2, Image as ImageIcon, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/useAuthStore';
 
-export function AddProductDialog({ onProductAdded }: { onProductAdded?: () => void }) {
+export function AddProductDialog({ onProductAdded, storeId }: { onProductAdded?: () => void; storeId?: string }) {
   const { profile } = useAuthStore();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,6 +37,8 @@ export function AddProductDialog({ onProductAdded }: { onProductAdded?: () => vo
     product_type: 'non-gadget' as 'gadget' | 'non-gadget',
   });
 
+  const targetStoreId = storeId || profile?.store_id;
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -51,7 +53,7 @@ export function AddProductDialog({ onProductAdded }: { onProductAdded?: () => vo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile?.store_id) {
+    if (!targetStoreId) {
       toast.error('Store ID not found. Please log in again.');
       return;
     }
@@ -64,7 +66,7 @@ export function AddProductDialog({ onProductAdded }: { onProductAdded?: () => vo
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${profile.store_id}/${fileName}`;
+        const filePath = `${targetStoreId}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('products')
@@ -96,7 +98,7 @@ export function AddProductDialog({ onProductAdded }: { onProductAdded?: () => vo
           brand_name: formData.brand_name || null,
           color: formData.color || null,
           product_type: formData.product_type,
-          store_id: profile.store_id,
+          store_id: targetStoreId,
           image_url: image_url,
         });
 

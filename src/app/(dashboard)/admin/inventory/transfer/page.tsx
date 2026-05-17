@@ -42,8 +42,11 @@ import {
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
+import { useActiveStore } from '@/store/useActiveStore';
+
 export default function StockTransferPage() {
   const { profile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   const [products, setProducts] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
   const [targetStoreId, setTargetStoreId] = useState<string>('');
@@ -56,23 +59,26 @@ export default function StockTransferPage() {
   const [showInvoice, setShowInvoice] = useState(false);
   const [completedTransfer, setCompletedTransfer] = useState<any>(null);
 
+  const storeToUse = activeStoreId || profile?.store_id;
+
   useEffect(() => {
-    if (profile?.store_id) {
+    if (storeToUse) {
       fetchData();
     }
-  }, [profile]);
+  }, [profile, activeStoreId, storeToUse]);
 
   const fetchData = async () => {
+    if (!storeToUse) return;
     setLoading(true);
     const { data: pData } = await supabase
       .from('products')
       .select('*')
-      .eq('store_id', profile?.store_id);
+      .eq('store_id', storeToUse);
     
     const { data: sData } = await supabase
       .from('stores')
       .select('*')
-      .neq('id', profile?.store_id);
+      .neq('id', storeToUse);
 
     if (pData) setProducts(pData);
     if (sData) setStores(sData);
@@ -109,7 +115,7 @@ export default function StockTransferPage() {
   const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   const handleTransfer = async () => {
-    if (!targetStoreId || cart.length === 0 || !profile?.store_id) {
+    if (!targetStoreId || cart.length === 0 || !storeToUse) {
       toast.error('Please select target store and items');
       return;
     }
@@ -123,7 +129,7 @@ export default function StockTransferPage() {
       const { data: transfer, error: tError } = await supabase
         .from('stock_transfers')
         .insert({
-          source_store_id: profile.store_id,
+          source_store_id: storeToUse,
           target_store_id: targetStoreId,
           items: cart.map(item => ({
             product_id: item.id,

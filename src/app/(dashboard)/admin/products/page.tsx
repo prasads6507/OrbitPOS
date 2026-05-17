@@ -43,18 +43,23 @@ import { AdjustStockDialog } from '@/components/admin/adjust-stock-dialog';
 import { cn } from '@/lib/utils';
 import { downloadCSV } from '@/lib/export';
 
+import { useActiveStore } from '@/store/useActiveStore';
+
 type Product = Database['public']['Tables']['products']['Row'];
 
 export default function ProductsPage() {
   const { profile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [adjustingStockProduct, setAdjustingStockProduct] = useState<Product | null>(null);
 
+  const storeToUse = activeStoreId || profile?.store_id;
+
   useEffect(() => {
-    if (profile?.store_id) {
+    if (storeToUse) {
       fetchProducts();
     }
 
@@ -64,7 +69,7 @@ export default function ProductsPage() {
         event: '*', 
         schema: 'public', 
         table: 'products',
-        filter: `store_id=eq.${profile?.store_id}` 
+        filter: `store_id=eq.${storeToUse}` 
       }, () => {
         fetchProducts();
       })
@@ -73,15 +78,15 @@ export default function ProductsPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile]);
+  }, [profile, activeStoreId, storeToUse]);
 
   const fetchProducts = async () => {
-    if (!profile?.store_id) return;
+    if (!storeToUse) return;
     setLoading(true);
     const { data } = await supabase
       .from('products')
       .select('*')
-      .eq('store_id', profile.store_id)
+      .eq('store_id', storeToUse)
       .order('created_at', { ascending: false });
 
     if (data) setProducts(data);
@@ -126,7 +131,7 @@ export default function ProductsPage() {
             <Download className="mr-2 h-4 w-4 text-gray-400" />
             Export CSV
           </Button>
-          {profile?.role === 'admin' && <AddProductDialog onProductAdded={fetchProducts} />}
+          {profile?.role === 'admin' && <AddProductDialog onProductAdded={fetchProducts} storeId={storeToUse} />}
         </div>
       </div>
 

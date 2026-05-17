@@ -36,20 +36,27 @@ import { format, startOfYear, startOfMonth, endOfMonth, subMonths } from 'date-f
 import { downloadCSV } from '@/lib/export';
 import { toast } from 'sonner';
 
+import { useActiveStore } from '@/store/useActiveStore';
+
 export default function PayrollPage() {
   const { profile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   const [payrollData, setPayrollData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [stats, setStats] = useState({ ytd: 0, estimated: 0, currentHours: 0 });
   const [selectedDetails, setSelectedDetails] = useState<any | null>(null);
 
+  const storeToUse = activeStoreId || profile?.store_id;
+
   useEffect(() => {
-    fetchPayroll();
-  }, [profile]);
+    if (storeToUse) {
+      fetchPayroll();
+    }
+  }, [profile, activeStoreId, storeToUse]);
 
   const fetchPayroll = async () => {
-    if (!profile) return;
+    if (!profile || !storeToUse) return;
     setLoading(true);
 
     try {
@@ -58,20 +65,20 @@ export default function PayrollPage() {
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('*')
-          .eq('store_id', profile.store_id);
+          .eq('store_id', storeToUse);
         
         // Fetch attendance for store employees for the current month
         const { data: monthLogs } = await supabase
           .from('attendance')
           .select('*')
-          .eq('store_id', profile.store_id)
+          .eq('store_id', storeToUse)
           .gte('clock_in', startOfMonth(new Date()).toISOString());
         
         // Fetch store payroll history for YTD calculation
         const { data: allStubs } = await supabase
           .from('payroll')
           .select('*')
-          .eq('store_id', profile.store_id);
+          .eq('store_id', storeToUse);
 
         const employeesList = (profilesData || []).map(emp => {
           const empLogs = (monthLogs || []).filter(l => l.employee_id === emp.id);
@@ -102,7 +109,7 @@ export default function PayrollPage() {
           .from('payroll')
           .select('*')
           .eq('employee_id', profile.id)
-          .eq('store_id', profile.store_id)
+          .eq('store_id', storeToUse)
           .order('period_end', { ascending: false });
 
         const stubs = data || [];
@@ -118,7 +125,7 @@ export default function PayrollPage() {
           .from('attendance')
           .select('total_hours')
           .eq('employee_id', profile.id)
-          .eq('store_id', profile.store_id)
+          .eq('store_id', storeToUse)
           .gte('clock_in', startOfMonth(new Date()).toISOString());
         
         const currentHours = monthLogs?.reduce((sum, l) => sum + (Number(l.total_hours) || 0), 0) || 0;

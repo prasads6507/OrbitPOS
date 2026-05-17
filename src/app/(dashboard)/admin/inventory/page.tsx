@@ -30,8 +30,11 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
+import { useActiveStore } from '@/store/useActiveStore';
+
 export default function InventoryPage() {
   const { profile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   const isAdmin = profile?.role === 'admin';
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,19 +42,21 @@ export default function InventoryPage() {
   const [adjustingId, setAdjustingId] = useState<string | null>(null);
   const [adjustAmount, setAdjustAmount] = useState(0);
 
+  const storeToUse = activeStoreId || profile?.store_id;
+
   useEffect(() => {
-    if (profile?.store_id) {
+    if (storeToUse) {
       fetchInventory();
     }
-  }, [profile]);
+  }, [profile, activeStoreId, storeToUse]);
 
   const fetchInventory = async (silent = false) => {
-    if (!profile?.store_id) return;
+    if (!storeToUse) return;
     if (!silent) setLoading(true);
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .eq('store_id', profile.store_id)
+      .eq('store_id', storeToUse)
       .order('stock_quantity', { ascending: true });
       
     if (error) {

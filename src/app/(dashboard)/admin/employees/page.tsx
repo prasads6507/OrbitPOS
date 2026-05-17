@@ -36,6 +36,8 @@ import { CreateEmployeeDialog } from '@/components/admin/employees/create-employ
 import { DollarSign } from 'lucide-react';
 import { updateEmployeeRole, updateEmployeePayRate, deleteEmployee } from '@/app/actions/employees';
 
+import { useActiveStore } from '@/store/useActiveStore';
+
 const roleConfig: Record<string, any> = {
   admin: { label: 'Admin', icon: Shield, color: 'bg-violet-50 text-violet-700 border-violet-100' },
   cashier: { label: 'Cashier', icon: ShoppingCart, color: 'bg-blue-50 text-blue-700 border-blue-100' },
@@ -44,25 +46,28 @@ const roleConfig: Record<string, any> = {
 
 export default function EmployeesPage() {
   const { profile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   const isAdmin = profile?.role === 'admin';
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [editingRates, setEditingRates] = useState<Record<string, string>>({});
 
+  const storeToUse = activeStoreId || profile?.store_id;
+
   useEffect(() => {
-    if (profile?.store_id) {
+    if (storeToUse) {
       fetchEmployees();
     }
-  }, [profile]);
+  }, [profile, activeStoreId, storeToUse]);
 
   const fetchEmployees = async () => {
-    if (!profile?.store_id) return;
+    if (!storeToUse) return;
     setLoading(true);
     const { data } = await supabase
       .from('profiles')
       .select('*')
-      .eq('store_id', profile.store_id)
+      .eq('store_id', storeToUse)
       .order('created_at', { ascending: false });
     setEmployees(data || []);
     setLoading(false);
@@ -153,7 +158,7 @@ export default function EmployeesPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          {isAdmin && <CreateEmployeeDialog onSuccess={fetchEmployees} />}
+          {isAdmin && <CreateEmployeeDialog onSuccess={fetchEmployees} storeId={storeToUse} />}
         </div>
       </div>
 

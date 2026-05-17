@@ -2,6 +2,7 @@
 
 import { useAuthStore } from '@/store/useAuthStore';
 import { useTransferStore } from '@/store/useTransferStore';
+import { useActiveStore } from '@/store/useActiveStore';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
@@ -17,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from '@/lib/utils';
-import { Bell, Search, Settings, Menu, Package, ArrowRight, Send } from 'lucide-react';
+import { Bell, Search, Settings, Menu, Package, ArrowRight, Send, Store } from 'lucide-react';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -26,10 +27,35 @@ interface HeaderProps {
 export function Header({ onMenuClick }: HeaderProps) {
   const { profile } = useAuthStore();
   const { setIsOpen: setOpenConfirmation, setPendingTransfer } = useTransferStore();
+  const { activeStoreId, setActiveStore } = useActiveStore();
   const router = useRouter();
   
   const [lowStockItems, setLowStockItems] = useState<any[]>([]);
   const [pendingTransfers, setPendingTransfers] = useState<any[]>([]);
+  const [stores, setStores] = useState<any[]>([]);
+
+  // Fetch all stores for switcher
+  useEffect(() => {
+    if (profile?.store_id) {
+      fetchStores();
+    }
+  }, [profile]);
+
+  const fetchStores = async () => {
+    try {
+      const { data } = await supabase.from('stores').select('*');
+      if (data) {
+        setStores(data);
+        // Default sync on first load
+        if (!activeStoreId && profile?.store_id) {
+          const matchingStore = data.find(s => s.id === profile.store_id);
+          setActiveStore(profile.store_id, matchingStore ? matchingStore.name : 'Primary Store');
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching switcher stores:', err);
+    }
+  };
 
   useEffect(() => {
     if (profile?.store_id) {
@@ -131,6 +157,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   };
 
   const totalNotifications = lowStockItems.length + pendingTransfers.length;
+  const currentActiveStoreName = stores.find(s => s.id === activeStoreId)?.name || profile?.stores?.name || 'Primary Store';
 
   return (
     <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-4 md:px-8 sticky top-0 z-40">
@@ -155,6 +182,35 @@ export function Header({ onMenuClick }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Global Store Switcher for Admins/Superadmins and Employees (Overview) */}
+        {stores.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#f5f5f7] border border-transparent rounded-2xl hover:border-gray-200 transition-all mr-2 group">
+            <Store className="h-4 w-4 text-[#0071e3] group-hover:scale-110 transition-transform" />
+            <div className="relative flex items-center">
+              <select 
+                className="text-[12px] font-black text-black bg-transparent outline-none cursor-pointer appearance-none pr-5 relative"
+                value={activeStoreId || ''}
+                onChange={(e) => {
+                  const selectedId = e.target.value;
+                  const selectedStore = stores.find(s => s.id === selectedId);
+                  setActiveStore(selectedId, selectedStore ? selectedStore.name : 'Unknown Store');
+                  // Trigger simple page reload so all page-level queries dynamically hook into the new store state
+                  if (typeof window !== 'undefined') {
+                    window.location.reload();
+                  }
+                }}
+              >
+                {stores.map(s => (
+                  <option key={s.id} value={s.id} className="font-bold text-gray-800 bg-white">{s.name}</option>
+                ))}
+              </select>
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                ▼
+              </div>
+            </div>
+          </div>
+        )}
+
         <DropdownMenu>
           <DropdownMenuTrigger className="text-gray-500 hover:text-black rounded-xl hover:bg-gray-100 h-10 w-10 relative flex items-center justify-center outline-none transition-colors">
             <Bell className="h-5 w-5" />
@@ -236,7 +292,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         <div className="flex items-center gap-3 pl-2">
           <div className="text-right hidden sm:block">
             <p className="text-[13px] font-bold text-black leading-none mb-1">{profile?.full_name?.split(' ')[0] || 'User'}</p>
-            <p className="text-[11px] font-medium text-gray-400 capitalize">{profile ? ((profile as any)?.stores?.name || profile?.role) : 'Checking Store...'}</p>
+            <p className="text-[11px] font-medium text-gray-400 capitalize">{currentActiveStoreName}</p>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden cursor-pointer relative">
              <div className="w-full h-full bg-gray-50 absolute" />

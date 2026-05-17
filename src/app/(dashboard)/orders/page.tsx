@@ -41,8 +41,11 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ReceiptPrinter } from '@/components/pos/receipt-printer';
 
+import { useActiveStore } from '@/store/useActiveStore';
+
 export default function OrdersPage() {
   const { profile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   
   // Date Filter State
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -56,14 +59,16 @@ export default function OrdersPage() {
   const [receiptData, setReceiptData] = useState<any | null>(null);
   const itemsPerPage = 15;
 
+  const storeToUse = activeStoreId || profile?.store_id;
+
   useEffect(() => {
-    if (profile?.store_id) {
+    if (storeToUse) {
       fetchOrders();
     }
-  }, [profile, startDate, endDate]);
+  }, [profile, activeStoreId, storeToUse, startDate, endDate]);
 
   const fetchOrders = async () => {
-    if (!profile?.store_id) return;
+    if (!storeToUse) return;
     const s = parseLocalDate(startDate);
     const e = parseLocalDate(endDate);
     if (!isValid(s) || !isValid(e)) return;
@@ -91,7 +96,7 @@ export default function OrdersPage() {
             products ( name, price, sku )
           )
         `)
-        .eq('store_id', profile.store_id)
+        .eq('store_id', storeToUse)
         .gte('created_at', startOfDay(s).toISOString())
         .lte('created_at', endOfDay(e).toISOString())
         .order('created_at', { ascending: false });

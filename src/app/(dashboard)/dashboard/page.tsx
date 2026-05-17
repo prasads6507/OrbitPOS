@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useActiveStore } from '@/store/useActiveStore';
 import { 
   TrendingUp, 
   Users, 
@@ -13,8 +14,6 @@ import {
   CalendarDays,
   ShoppingBag,
   RefreshCw,
-  Store,
-  ChevronDown,
   Download,
   Lock
 } from 'lucide-react';
@@ -46,6 +45,7 @@ import {
 
 export default function DashboardPage() {
   const { profile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalRevenue: 0,
@@ -58,30 +58,13 @@ export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
   const [vendorData, setVendorData] = useState<any[]>([]);
-  const [stores, setStores] = useState<any[]>([]);
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
-
-  // Sync selectedStoreId with user store_id initially
-  useEffect(() => {
-    if (profile?.store_id && !selectedStoreId) {
-      setSelectedStoreId(profile.store_id);
-    }
-    if (profile?.store_id) {
-      fetchStores();
-    }
-  }, [profile]);
-
-  const fetchStores = async () => {
-    const { data } = await supabase.from('stores').select('*');
-    if (data) setStores(data);
-  };
 
   useEffect(() => {
-    const storeToUse = selectedStoreId || profile?.store_id;
+    const storeToUse = activeStoreId || profile?.store_id;
     if (storeToUse) {
       fetchDashboardData(selectedDate, timeRange, storeToUse);
     }
-  }, [selectedDate, timeRange, profile, selectedStoreId]);
+  }, [selectedDate, timeRange, profile, activeStoreId]);
 
   const fetchDashboardData = async (dateStr: string, range: string, storeId: string) => {
     if (!storeId) return;
@@ -210,7 +193,7 @@ export default function DashboardPage() {
 
       setRecentOrders(orders || []);
 
-      // 5. Vendor Performance Data - FILTERED BY PRODUCTS OF SELECTED STORE ID
+      // 5. Vendor & Product Performance Data - Grouped by both Vendor & Item Name!
       const { data: vItems } = await supabase
         .from('order_items')
         .select(`
@@ -219,21 +202,35 @@ export default function DashboardPage() {
           products!inner (
             vendor_name,
             name,
-            store_id
+            store_id,
+            price
           )
         `)
         .eq('products.store_id', storeId)
         .gte('created_at', startDate)
         .lt('created_at', endDate);
 
-      const vendorMap: Record<string, number> = {};
+      const vendorMap: Record<string, { name: string; value: number; revenue: number }> = {};
       vItems?.forEach((item: any) => {
         const vName = item.products?.vendor_name || 'Generic';
-        vendorMap[vName] = (vendorMap[vName] || 0) + item.quantity;
+        const pName = item.products?.name || 'Unnamed Product';
+        const price = item.products?.price || 0;
+        
+        // Key displays BOTH Vendor Name and Product Name!
+        const key = `${vName} - ${pName}`;
+        
+        if (!vendorMap[key]) {
+          vendorMap[key] = {
+            name: key,
+            value: 0,
+            revenue: 0
+          };
+        }
+        vendorMap[key].value += item.quantity;
+        vendorMap[key].revenue += item.quantity * price;
       });
 
-      const vData = Object.entries(vendorMap)
-        .map(([name, value]) => ({ name, value }))
+      const vData = Object.values(vendorMap)
         .sort((a, b) => b.value - a.value)
         .slice(0, 5);
       
@@ -250,7 +247,7 @@ export default function DashboardPage() {
 
   // Access rules:
   // Non-admins switching to other stores should only see the summary cards and charts, not detailed order transactions.
-  const isViewingOtherStore = selectedStoreId && selectedStoreId !== profile?.store_id;
+  const isViewingOtherStore = activeStoreId && activeStoreId !== profile?.store_id;
   const isEmployee = profile?.role !== 'admin' && profile?.role !== 'superadmin';
   const showRestrictedView = isEmployee && isViewingOtherStore;
 
@@ -292,23 +289,8 @@ export default function DashboardPage() {
             />
           </div>
 
-          {stores.length > 0 && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-[#0071e3] transition-colors">
-              <Store className="h-4 w-4 text-gray-400" />
-              <select 
-                className="text-[13px] font-semibold text-gray-600 bg-transparent outline-none cursor-pointer appearance-none pr-6 relative"
-                value={selectedStoreId || ''}
-                onChange={(e) => setSelectedStoreId(e.target.value)}
-              >
-                {stores.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
           <button 
-            onClick={() => fetchDashboardData(selectedDate, timeRange, selectedStoreId || profile?.store_id || '')} 
+            onClick={() => fetchDashboardData(selectedDate, timeRange, activeStoreId || profile?.store_id || '')} 
             className="p-2 bg-white border border-gray-100 rounded-xl shadow-sm hover:bg-gray-50 transition-all text-gray-400 hover:text-black"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -439,12 +421,12 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Top Vendors Bar Chart */}
+        {/* Top Vendors & Items Bar Chart */}
         <div className="lg:col-span-3 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm mt-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="text-xl font-bold text-black" style={{fontFamily: 'var(--font-outfit)'}}>Top Vendors by Sales</h3>
-              <p className="text-[13px] text-gray-400 font-medium">Comparison of product units sold per vendor</p>
+              <h3 className="text-xl font-bold text-black" style={{fontFamily: 'var(--font-outfit)'}}>Top Product Sales by Vendor</h3>
+              <p className="text-[13px] text-gray-400 font-medium">Visualizing top-selling items and their suppliers</p>
             </div>
             <div className="flex items-center gap-4">
               <Button 
@@ -452,21 +434,26 @@ export default function DashboardPage() {
                 size="sm" 
                 className="rounded-xl font-bold h-9 border-gray-100 shadow-sm"
                 onClick={() => {
-                  const csv = vendorData.map(v => `${v.name},${v.value}`).join('\n');
-                  const blob = new Blob([`Vendor,Units Sold\n${csv}`], { type: 'text/csv' });
+                  const csvRows = vendorData.map(v => {
+                    const parts = v.name.split(' - ');
+                    const vendor = parts[0] || 'Generic';
+                    const product = parts[1] || 'Unnamed';
+                    return `"${vendor}","${product}",${v.value},${v.revenue.toFixed(2)}`;
+                  });
+                  const blob = new Blob([`Vendor,Product Name,Units Sold,Total Revenue ($)\n${csvRows.join('\n')}`], { type: 'text/csv' });
                   const url = window.URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `vendor_report_${timeRange}.csv`;
+                  a.download = `vendor_product_sales_${timeRange}.csv`;
                   a.click();
                 }}
               >
                 <Download className="h-4 w-4 mr-2" />
-                Export
+                Export Complete Data
               </Button>
             </div>
           </div>
-          <div className="h-[350px] w-full">
+          <div className="h-[380px] w-full">
             {loading ? (
               <div className="h-full flex items-center justify-center">
                 <RefreshCw className="h-8 w-8 animate-spin text-gray-300" />
@@ -478,21 +465,21 @@ export default function DashboardPage() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={vendorData} layout="vertical" margin={{ left: 20, right: 30, top: 0, bottom: 0 }}>
+                <BarChart data={vendorData} layout="vertical" margin={{ left: 60, right: 30, top: 0, bottom: 0 }}>
                   <XAxis type="number" hide />
                   <YAxis 
                     dataKey="name" 
                     type="category" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{fill: '#000', fontSize: 13, fontWeight: 700}} 
-                    width={100}
+                    tick={{fill: '#000', fontSize: 11, fontWeight: 700}} 
+                    width={220}
                   />
                   <Tooltip 
                     cursor={{fill: '#fbfbfd'}} 
                     contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.08)'}}
                   />
-                  <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={32}>
+                  <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={26}>
                     {vendorData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={['#0071e3', '#34c759', '#ff9500', '#af52de', '#ff3b30'][index % 5]} />
                     ))}

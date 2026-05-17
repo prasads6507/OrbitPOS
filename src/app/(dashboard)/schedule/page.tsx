@@ -56,8 +56,11 @@ import {
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+import { useActiveStore } from '@/store/useActiveStore';
+
 export default function SchedulePage() {
   const { profile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   
   // Custom View Range State
   const [startInput, setStartInput] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -77,6 +80,7 @@ export default function SchedulePage() {
   const [note, setNote] = useState('');
 
   const isAdmin = profile?.role === 'admin';
+  const storeToUse = activeStoreId || profile?.store_id;
 
   // Helper to parse date string as LOCAL time to avoid timezone shifts
   const parseLocalDate = (dateStr: string) => {
@@ -85,12 +89,13 @@ export default function SchedulePage() {
   };
 
   useEffect(() => {
-    if (profile?.store_id) {
+    if (storeToUse) {
       fetchData();
     }
-  }, [profile, startInput, endInput]);
+  }, [profile, activeStoreId, storeToUse, startInput, endInput]);
 
   const fetchData = async () => {
+    if (!storeToUse) return;
     const s = parseLocalDate(startInput);
     const e = parseLocalDate(endInput);
     if (!isValid(s) || !isValid(e)) return;
@@ -101,7 +106,7 @@ export default function SchedulePage() {
         const { data: empData } = await supabase
           .from('profiles')
           .select('id, full_name, role')
-          .eq('store_id', profile.store_id)
+          .eq('store_id', storeToUse)
           .neq('role', 'superadmin');
         setEmployees(empData || []);
       }
@@ -112,7 +117,7 @@ export default function SchedulePage() {
           *,
           employee:profiles(full_name)
         `)
-        .eq('store_id', profile.store_id)
+        .eq('store_id', storeToUse)
         .gte('start_time', startOfDay(s).toISOString())
         .lte('start_time', endOfDay(e).toISOString())
         .order('start_time', { ascending: true });
@@ -131,7 +136,7 @@ export default function SchedulePage() {
       return;
     }
     const payload = {
-      store_id: profile.store_id,
+      store_id: storeToUse,
       employee_id: selectedEmployeeId,
       start_time: new Date(`${shiftDate}T${startTime}:00`).toISOString(),
       end_time: new Date(`${shiftDate}T${endTime}:00`).toISOString(),

@@ -36,8 +36,11 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
+import { useActiveStore } from '@/store/useActiveStore';
+
 export default function VendorInvoicesPage() {
   const { profile } = useAuthStore();
+  const { activeStoreId } = useActiveStore();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -47,19 +50,21 @@ export default function VendorInvoicesPage() {
   const [vendorName, setVendorName] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
+  const storeToUse = activeStoreId || profile?.store_id;
+
   useEffect(() => {
-    if (profile?.store_id) {
+    if (storeToUse) {
       fetchInvoices();
     }
-  }, [profile]);
+  }, [profile, activeStoreId, storeToUse]);
 
   const fetchInvoices = async () => {
-    if (!profile?.store_id) return;
+    if (!storeToUse) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('vendor_invoices')
       .select('*')
-      .eq('store_id', profile.store_id)
+      .eq('store_id', storeToUse)
       .order('invoice_date', { ascending: false });
 
     if (data) setInvoices(data);
@@ -68,13 +73,13 @@ export default function VendorInvoicesPage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !vendorName || !profile?.store_id) return;
+    if (!file || !vendorName || !storeToUse) return;
 
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `invoices/${profile.store_id}/${fileName}`;
+      const filePath = `invoices/${storeToUse}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('documents')
@@ -92,7 +97,7 @@ export default function VendorInvoicesPage() {
           vendor_name: vendorName,
           invoice_url: publicUrl,
           invoice_date: invoiceDate,
-          store_id: profile.store_id
+          store_id: storeToUse
         });
 
       if (dbError) throw dbError;

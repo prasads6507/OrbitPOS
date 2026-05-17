@@ -25,9 +25,10 @@ import { useAuthStore } from '@/store/useAuthStore';
 
 interface CreateEmployeeDialogProps {
   onSuccess: () => void;
+  storeId?: string;
 }
 
-export function CreateEmployeeDialog({ onSuccess }: CreateEmployeeDialogProps) {
+export function CreateEmployeeDialog({ onSuccess, storeId }: CreateEmployeeDialogProps) {
   const { profile } = useAuthStore();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,13 +40,15 @@ export function CreateEmployeeDialog({ onSuccess }: CreateEmployeeDialogProps) {
     hourly_rate: 0,
   });
 
+  const targetStoreId = storeId || profile?.store_id;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('--- Employee Submission Started ---');
     console.log('FormData:', formData);
     setLoading(true);
 
-    if (!profile?.store_id) {
+    if (!targetStoreId) {
       toast.error("User profile or Store ID not found");
       setLoading(false);
       return;
@@ -54,7 +57,7 @@ export function CreateEmployeeDialog({ onSuccess }: CreateEmployeeDialogProps) {
     try {
       const result = await createEmployee({
         ...formData,
-        store_id: profile.store_id
+        store_id: targetStoreId
       });
 
       if (result.error) {

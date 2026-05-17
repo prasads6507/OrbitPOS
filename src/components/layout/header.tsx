@@ -197,6 +197,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                     setActiveStore(selectedId, selectedStore ? selectedStore.name : 'Unknown Store');
                     // Trigger simple page reload so all page-level queries dynamically hook into the new store state
                     if (typeof window !== 'undefined') {
+                      sessionStorage.setItem('manually_selected_store', 'true');
                       window.location.reload();
                     }
                   }}

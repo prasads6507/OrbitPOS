@@ -94,12 +94,14 @@ export default function AttendancePage() {
       .from('attendance')
       .insert({
         employee_id: profile.id,
+        store_id: profile.store_id || '00000000-0000-0000-0000-000000000000',
         clock_in: new Date().toISOString(),
       })
       .select()
       .single();
 
     if (error) {
+      console.error('Clock in error:', error);
       toast.error('Failed to clock in');
     } else {
       setActiveShift(data);
@@ -137,8 +139,8 @@ export default function AttendancePage() {
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-black">Attendance</h1>
-          <p className="text-[#86868b] font-medium mt-1">Track your work hours and attendance history.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-black">Time Punch</h1>
+          <p className="text-[#86868b] font-medium mt-1">Track your work hours and punch logs history.</p>
         </div>
         <div className="flex items-center gap-3">
            <div className="px-4 py-2 bg-white border border-gray-100 rounded-xl shadow-sm text-[13px] font-bold text-gray-600">
@@ -242,7 +244,7 @@ export default function AttendancePage() {
             ) : logs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-16 text-gray-400 font-medium">
-                  No attendance history found.
+                  No punch history found.
                 </TableCell>
               </TableRow>
             ) : (

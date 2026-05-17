@@ -182,32 +182,40 @@ export function Header({ onMenuClick }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Global Store Switcher for Admins/Superadmins and Employees (Overview) */}
-        {stores.length > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-[#f5f5f7] border border-transparent rounded-2xl hover:border-gray-200 transition-all mr-2 group">
-            <Store className="h-4 w-4 text-[#0071e3] group-hover:scale-110 transition-transform" />
-            <div className="relative flex items-center">
-              <select 
-                className="text-[12px] font-black text-black bg-transparent outline-none cursor-pointer appearance-none pr-5 relative"
-                value={activeStoreId || ''}
-                onChange={(e) => {
-                  const selectedId = e.target.value;
-                  const selectedStore = stores.find(s => s.id === selectedId);
-                  setActiveStore(selectedId, selectedStore ? selectedStore.name : 'Unknown Store');
-                  // Trigger simple page reload so all page-level queries dynamically hook into the new store state
-                  if (typeof window !== 'undefined') {
-                    window.location.reload();
-                  }
-                }}
-              >
-                {stores.map(s => (
-                  <option key={s.id} value={s.id} className="font-bold text-gray-800 bg-white">{s.name}</option>
-                ))}
-              </select>
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                ▼
+        {/* Global Store Switcher for Admins */}
+        {profile?.role === 'admin' ? (
+          stores.length > 0 && (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-[#f5f5f7] border border-transparent rounded-2xl hover:border-gray-200 transition-all mr-2 group">
+              <Store className="h-4 w-4 text-[#0071e3] group-hover:scale-110 transition-transform" />
+              <div className="relative flex items-center">
+                <select 
+                  className="text-[12px] font-black text-black bg-transparent outline-none cursor-pointer appearance-none pr-5 relative"
+                  value={activeStoreId || ''}
+                  onChange={(e) => {
+                    const selectedId = e.target.value;
+                    const selectedStore = stores.find(s => s.id === selectedId);
+                    setActiveStore(selectedId, selectedStore ? selectedStore.name : 'Unknown Store');
+                    // Trigger simple page reload so all page-level queries dynamically hook into the new store state
+                    if (typeof window !== 'undefined') {
+                      window.location.reload();
+                    }
+                  }}
+                >
+                  {stores.map(s => (
+                    <option key={s.id} value={s.id} className="font-bold text-gray-800 bg-white">{s.name}</option>
+                  ))}
+                </select>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-[10px]">
+                  ▼
+                </div>
               </div>
             </div>
+          )
+        ) : (
+          /* Read-only assigned store pill for Employees */
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl mr-2">
+            <Store className="h-4 w-4 text-gray-400" />
+            <span className="text-[12px] font-bold text-gray-500">{profile?.stores?.name || 'Primary Store'}</span>
           </div>
         )}
 

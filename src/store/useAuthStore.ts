@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import { useActiveStore } from '@/store/useActiveStore';
 
 interface AuthState {
   user: any | null;
@@ -20,6 +21,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   setProfile: (profile) => set({ profile }),
   signOut: async () => {
     await supabase.auth.signOut();
+    useActiveStore.getState().setActiveStore(null, null);
     set({ user: null, profile: null });
   },
   fetchProfile: async (userId) => {
@@ -60,6 +62,15 @@ export const useAuthStore = create<AuthState>((set) => ({
           console.error('Store fetch error:', JSON.stringify(sError, null, 2));
         }
         storeData = store;
+      }
+
+      // Automatically align activeStore context to user's assigned store if not matching
+      const currentActiveStore = useActiveStore.getState().activeStoreId;
+      if (profile.store_id && currentActiveStore !== profile.store_id) {
+        useActiveStore.getState().setActiveStore(
+          profile.store_id, 
+          storeData ? storeData.name : 'Primary Store'
+        );
       }
 
       set({ 

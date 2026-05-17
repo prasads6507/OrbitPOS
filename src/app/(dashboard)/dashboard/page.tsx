@@ -354,19 +354,30 @@ export default function DashboardPage() {
                 <AreaChart data={chartData} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0071e3" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#0071e3" stopOpacity={0}/>
+                      <stop offset="0%" stopColor="#0071e3" stopOpacity={0.35}/>
+                      <stop offset="100%" stopColor="#0071e3" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#00c6ff" />
+                      <stop offset="100%" stopColor="#0072ff" />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#86868b', fontSize: 12, fontWeight: 500}} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#86868b', fontSize: 12, fontWeight: 500}} tickFormatter={(v) => `$${v}`} />
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e5e5ea" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#86868b', fontSize: 12, fontWeight: 600}} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#86868b', fontSize: 12, fontWeight: 600}} tickFormatter={(v) => `$${v}`} />
                   <Tooltip 
-                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', padding: '12px'}}
+                    contentStyle={{
+                      borderRadius: '24px', 
+                      border: 'none', 
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.06)',
+                      background: 'rgba(255, 255, 255, 0.8)',
+                      backdropFilter: 'blur(20px)',
+                      padding: '16px'
+                    }}
                     formatter={(value: any) => [`$${value}`, 'Revenue']}
-                    cursor={{stroke: '#0071e3', strokeWidth: 1}}
+                    cursor={{stroke: '#0072ff', strokeWidth: 1.5}}
                   />
-                  <Area type="monotone" dataKey="revenue" stroke="#0071e3" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                  <Area type="monotone" dataKey="revenue" stroke="url(#lineGrad)" strokeWidth={4} activeDot={{ r: 7, strokeWidth: 0, fill: '#0072ff' }} fillOpacity={1} fill="url(#colorRevenue)" />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -465,23 +476,52 @@ export default function DashboardPage() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={vendorData} layout="vertical" margin={{ left: 60, right: 30, top: 0, bottom: 0 }}>
+                <BarChart data={vendorData} layout="vertical" margin={{ left: 40, right: 30, top: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradBlue" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#00c6ff" />
+                      <stop offset="100%" stopColor="#0072ff" />
+                    </linearGradient>
+                    <linearGradient id="gradGreen" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#11998e" />
+                      <stop offset="100%" stopColor="#38ef7d" />
+                    </linearGradient>
+                    <linearGradient id="gradOrange" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#ff9900" />
+                      <stop offset="100%" stopColor="#ff5500" />
+                    </linearGradient>
+                    <linearGradient id="gradPurple" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#8a2387" />
+                      <stop offset="100%" stopColor="#e94057" />
+                    </linearGradient>
+                    <linearGradient id="gradRed" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#f857a6" />
+                      <stop offset="100%" stopColor="#ff5858" />
+                    </linearGradient>
+                  </defs>
                   <XAxis type="number" hide />
                   <YAxis 
                     dataKey="name" 
                     type="category" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{fill: '#000', fontSize: 11, fontWeight: 700}} 
-                    width={220}
+                    tick={{fill: '#1d1d1f', fontSize: 11, fontWeight: 700}} 
+                    width={200}
                   />
                   <Tooltip 
-                    cursor={{fill: '#fbfbfd'}} 
-                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.08)'}}
+                    cursor={{fill: 'rgba(0,0,0,0.02)', radius: 12}} 
+                    contentStyle={{
+                      borderRadius: '24px', 
+                      border: 'none', 
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.06)',
+                      background: 'rgba(255, 255, 255, 0.8)',
+                      backdropFilter: 'blur(20px)',
+                      padding: '16px'
+                    }}
                   />
-                  <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={26}>
+                  <Bar dataKey="value" radius={[99, 99, 99, 99]} barSize={16}>
                     {vendorData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={['#0071e3', '#34c759', '#ff9500', '#af52de', '#ff3b30'][index % 5]} />
+                      <Cell key={`cell-${index}`} fill={['url(#gradBlue)', 'url(#gradGreen)', 'url(#gradOrange)', 'url(#gradPurple)', 'url(#gradRed)'][index % 5]} />
                     ))}
                   </Bar>
                 </BarChart>

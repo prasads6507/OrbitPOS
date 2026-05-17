@@ -15,7 +15,8 @@ import {
   RefreshCw,
   Store,
   ChevronDown,
-  Download
+  Download,
+  Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -58,10 +59,14 @@ export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
   const [vendorData, setVendorData] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(profile?.store_id || null);
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
 
+  // Sync selectedStoreId with user store_id initially
   useEffect(() => {
-    if (profile?.role === 'admin' || profile?.role === 'superadmin') {
+    if (profile?.store_id && !selectedStoreId) {
+      setSelectedStoreId(profile.store_id);
+    }
+    if (profile?.store_id) {
       fetchStores();
     }
   }, [profile]);
@@ -100,11 +105,11 @@ export default function DashboardPage() {
         endDate = endOfYear(targetDate).toISOString();
       }
 
-      // 1. Stats based on range
+      // 1. Stats based on range - FILTERED BY SELECTED STORE ID
       const { data: rangeData } = await supabase
         .from('orders')
         .select('total_amount, refunded_amount')
-        .eq('store_id', profile.store_id)
+        .eq('store_id', storeId)
         .gte('created_at', startDate)
         .lt('created_at', endDate)
         .neq('payment_status', 'voided');
@@ -113,11 +118,11 @@ export default function DashboardPage() {
       const totalLoss = rangeData?.reduce((sum, o) => sum + (o.refunded_amount || 0), 0) || 0;
       const orderCount = rangeData?.length || 0;
 
-      // 2. All time staff count
+      // 2. All time staff count - FILTERED BY SELECTED STORE ID
       const { count: totalProfiles } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
-        .eq('store_id', profile.store_id);
+        .eq('store_id', storeId);
 
       setStats({
         totalRevenue,
@@ -126,7 +131,7 @@ export default function DashboardPage() {
         totalProfiles: totalProfiles || 0,
       });
 
-      // 3. Dynamic Chart Data
+      // 3. Dynamic Chart Data - FILTERED BY SELECTED STORE ID
       const chartPoints = [];
       if (range === 'daily' || range === 'weekly') {
         // Show last 7 days
@@ -138,7 +143,7 @@ export default function DashboardPage() {
           const { data: dOrders } = await supabase
             .from('orders')
             .select('total_amount, refunded_amount')
-            .eq('store_id', profile.store_id)
+            .eq('store_id', storeId)
             .gte('created_at', dStart)
             .lt('created_at', dEnd)
             .neq('payment_status', 'voided');
@@ -158,7 +163,7 @@ export default function DashboardPage() {
           const { data: wOrders } = await supabase
             .from('orders')
             .select('total_amount, refunded_amount')
-            .eq('store_id', profile.store_id)
+            .eq('store_id', storeId)
             .gte('created_at', startOfDay(wStart).toISOString())
             .lt('created_at', endOfDay(wEnd).toISOString())
             .neq('payment_status', 'voided');
@@ -179,7 +184,7 @@ export default function DashboardPage() {
           const { data: mOrders } = await supabase
             .from('orders')
             .select('total_amount, refunded_amount')
-            .eq('store_id', profile.store_id)
+            .eq('store_id', storeId)
             .gte('created_at', mStart)
             .lt('created_at', mEnd)
             .neq('payment_status', 'voided');
@@ -193,7 +198,7 @@ export default function DashboardPage() {
       }
       setChartData(chartPoints);
 
-      // 4. Recent orders (Filtered by range for context)
+      // 4. Recent orders - FILTERED BY SELECTED STORE ID
       const { data: orders } = await supabase
         .from('orders')
         .select('id, total_amount, refunded_amount, payment_method, payment_status, created_at')
@@ -205,7 +210,7 @@ export default function DashboardPage() {
 
       setRecentOrders(orders || []);
 
-      // 5. Vendor Performance Data
+      // 5. Vendor Performance Data - FILTERED BY PRODUCTS OF SELECTED STORE ID
       const { data: vItems } = await supabase
         .from('order_items')
         .select(`
@@ -213,9 +218,11 @@ export default function DashboardPage() {
           product_id,
           products!inner (
             vendor_name,
-            name
+            name,
+            store_id
           )
         `)
+        .eq('products.store_id', storeId)
         .gte('created_at', startDate)
         .lt('created_at', endDate);
 
@@ -241,17 +248,23 @@ export default function DashboardPage() {
 
   const today = new Date();
 
+  // Access rules:
+  // Non-admins switching to other stores should only see the summary cards and charts, not detailed order transactions.
+  const isViewingOtherStore = selectedStoreId && selectedStoreId !== profile?.store_id;
+  const isEmployee = profile?.role !== 'admin' && profile?.role !== 'superadmin';
+  const showRestrictedView = isEmployee && isViewingOtherStore;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-black" style={{fontFamily: 'var(--font-outfit)'}}>
-            Good {today.getHours() < 12 ? 'morning' : today.getHours() < 18 ? 'afternoon' : 'evening'}, {profile?.full_name?.split(' ')[0] || 'Admin'} 👋
+            Good {today.getHours() < 12 ? 'morning' : today.getHours() < 18 ? 'afternoon' : 'evening'}, {profile?.full_name?.split(' ')[0] || 'User'} 👋
           </h1>
           <p className="text-[#86868b] font-medium mt-1">Here is what&apos;s happening with your store today.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex bg-white border border-gray-100 p-1 rounded-2xl shadow-sm">
             {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((r) => (
               <button
@@ -279,7 +292,7 @@ export default function DashboardPage() {
             />
           </div>
 
-          {(profile?.role === 'admin' || profile?.role === 'superadmin') && (
+          {stores.length > 0 && (
             <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-[#0071e3] transition-colors">
               <Store className="h-4 w-4 text-gray-400" />
               <select 
@@ -320,52 +333,46 @@ export default function DashboardPage() {
           color="indigo"
         />
         <StatsCard 
-          title="Refunded (Loss)" 
+          title="Total Refund Loss" 
           value={loading ? '...' : `$${stats.totalLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-          subtitle="Net returns"
+          subtitle="Customer refund value"
           icon={ArrowDownRight}
           color="rose"
         />
         <StatsCard 
-          title="Staff Members" 
+          title="Active Staff" 
           value={loading ? '...' : stats.totalProfiles.toString()}
-          subtitle="Total accounts"
+          subtitle="Registered profiles in store"
           icon={Users}
-          color="emerald"
+          color="violet"
         />
       </div>
 
-      {/* Chart + Recent Transactions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+        {/* Main Revenue Chart */}
         <div className="lg:col-span-2 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="text-xl font-bold text-black" style={{fontFamily: 'var(--font-outfit)'}}>Revenue Trends</h3>
-              <p className="text-[13px] text-gray-400 font-medium">Visualizing data for the selected {timeRange} period</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#0071e3]" />
-              <span className="text-[11px] font-bold text-gray-500 uppercase">Revenue</span>
+              <p className="text-[13px] text-gray-400 font-medium">Visualizing sales performance data</p>
             </div>
           </div>
-          <div className="h-[300px] w-full min-h-[300px]">
+          <div className="h-[300px] w-full">
             {loading ? (
-              <div className="h-full flex items-center justify-center text-gray-300">
-                <RefreshCw className="h-8 w-8 animate-spin" />
+              <div className="h-full flex items-center justify-center">
+                <RefreshCw className="h-8 w-8 animate-spin text-gray-300" />
               </div>
-            ) : chartData.length === 0 || chartData.every(d => d.revenue === 0) ? (
+            ) : chartData.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-gray-300">
                 <TrendingUp className="h-12 w-12 mb-3 opacity-30" />
-                <p className="font-medium text-gray-400">No orders yet</p>
-                <p className="text-[13px]">Complete a sale in POS to see data here.</p>
+                <p className="font-medium">No sales recorded</p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%" minHeight={300}>
-                <AreaChart data={chartData}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{top: 10, right: 10, left: -20, bottom: 0}}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0071e3" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#0071e3" stopOpacity={0.2}/>
                       <stop offset="95%" stopColor="#0071e3" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
@@ -384,13 +391,21 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent Orders */}
+        {/* Recent Orders / Restricted View block */}
         <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col">
           <h3 className="text-xl font-bold text-black mb-6" style={{fontFamily: 'var(--font-outfit)'}}>Recent Orders</h3>
           
           {loading ? (
             <div className="flex-1 flex items-center justify-center text-gray-300">
               <RefreshCw className="h-6 w-6 animate-spin" />
+            </div>
+          ) : showRestrictedView ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-400 py-8">
+              <Lock className="h-12 w-12 mb-3 text-amber-500 opacity-80" />
+              <p className="font-bold text-gray-700">Overview Restricted</p>
+              <p className="text-[11px] text-gray-400 mt-1 max-w-[200px] leading-relaxed">
+                Detailed order transactions are hidden for external store profiles.
+              </p>
             </div>
           ) : recentOrders.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-300 py-8">
@@ -423,6 +438,8 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Top Vendors Bar Chart */}
         <div className="lg:col-span-3 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm mt-8">
           <div className="flex items-center justify-between mb-8">
             <div>

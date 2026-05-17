@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useTransferStore } from '@/store/useTransferStore';
 import { 
   Package, 
   CheckCircle2, 
@@ -22,8 +23,13 @@ import { toast } from 'sonner';
 
 export function TransferConfirmationPopup() {
   const { profile } = useAuthStore();
-  const [pendingTransfer, setPendingTransfer] = useState<any | null>(null);
-  const [open, setOpen] = useState(false);
+  const { 
+    isOpen: open, 
+    setIsOpen: setOpen, 
+    pendingTransfer, 
+    setPendingTransfer 
+  } = useTransferStore();
+  
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

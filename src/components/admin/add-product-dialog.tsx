@@ -210,12 +210,13 @@ export function AddProductDialog({ onProductAdded, storeId }: { onProductAdded?:
         return;
       }
 
-      // Auto-generate SKU from brand + model + color
-      const autoSku = [formData.brand_name, formData.model, formData.color]
+      // Auto-generate SKU from brand + model + color + unique suffix
+      const skuBase = [formData.brand_name, formData.model, formData.color]
         .filter(Boolean)
         .join('-')
         .toUpperCase()
         .replace(/\s+/g, '') || productName.toUpperCase().replace(/\s+/g, '-').slice(0, 20);
+      const autoSku = `${skuBase}-${Date.now().toString(36).toUpperCase()}`;
 
       // 3. Insert product
       const { error: pError } = await supabase

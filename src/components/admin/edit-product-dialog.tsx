@@ -206,11 +206,12 @@ export function EditProductDialog({
         }
       }
 
-      const autoSku = [formData.brand_name, formData.model, formData.color]
+      const skuBase = [formData.brand_name, formData.model, formData.color]
         .filter(Boolean)
         .join('-')
         .toUpperCase()
         .replace(/\s+/g, '') || formData.name.toUpperCase().replace(/\s+/g, '-').slice(0, 20);
+      const autoSku = product.sku || `${skuBase}-${Date.now().toString(36).toUpperCase()}`;
 
       const { error: pError } = await supabase
         .from('products')

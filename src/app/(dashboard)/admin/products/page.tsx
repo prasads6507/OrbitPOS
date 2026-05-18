@@ -107,7 +107,7 @@ export default function ProductsPage() {
   );
 
   const deleteProduct = async (id: string) => {
-    if (!confirm('Are you sure you want to permanently delete this product and all its related data (orders history, serial numbers, variants)?')) return;
+    if (!confirm('Are you sure you want to permanently delete this product and all its related data (orders, serial numbers, variants)?')) return;
 
     try {
       // 1. Delete serialized inventory entries
@@ -116,19 +116,39 @@ export default function ProductsPage() {
         .delete()
         .eq('product_id', id);
 
-      // 2. Delete order items referencing this product
+      // 2. Get all order IDs that contain this product before deleting items
+      const { data: affectedItems } = await supabase
+        .from('order_items')
+        .select('order_id')
+        .eq('product_id', id);
+
+      const affectedOrderIds = [...new Set((affectedItems || []).map(i => i.order_id))];
+
+      // 3. Delete order items referencing this product
       await supabase
         .from('order_items')
         .delete()
         .eq('product_id', id);
 
-      // 3. Delete product variants
+      // 4. Delete product variants
       await supabase
         .from('product_variants')
         .delete()
         .eq('product_id', id);
 
-      // 4. Finally delete the product itself
+      // 5. Clean up orphaned orders (orders that now have zero items left)
+      for (const orderId of affectedOrderIds) {
+        const { count } = await supabase
+          .from('order_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('order_id', orderId);
+
+        if (count === 0) {
+          await supabase.from('orders').delete().eq('id', orderId);
+        }
+      }
+
+      // 6. Finally delete the product itself
       const { error } = await supabase
         .from('products')
         .delete()
@@ -137,7 +157,7 @@ export default function ProductsPage() {
       if (error) throw error;
 
       setProducts(prev => prev.filter(p => p.id !== id));
-      toast.success('Product deleted successfully');
+      toast.success('Product and related data deleted successfully');
     } catch (error: any) {
       console.error('Delete product error:', error);
       toast.error(error.message || 'Failed to delete product');

@@ -100,7 +100,10 @@ export default function ProductsPage() {
     p.name.toLowerCase().includes(search.toLowerCase()) || 
     p.sku.toLowerCase().includes(search.toLowerCase()) ||
     (p.vendor_name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (p.brand_name || '').toLowerCase().includes(search.toLowerCase())
+    (p.brand_name || '').toLowerCase().includes(search.toLowerCase()) ||
+    ((p as any).model || '').toLowerCase().includes(search.toLowerCase()) ||
+    ((p as any).color || '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.barcode || '').includes(search)
   );
 
   const deleteProduct = async (id: string) => {

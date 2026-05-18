@@ -78,6 +78,7 @@ export interface Database {
           vendor_name: string | null
           brand_name: string | null
           color: string | null
+          model: string | null
           product_type: 'gadget' | 'non-gadget' | null
           created_at: string
           updated_at: string
@@ -99,6 +100,7 @@ export interface Database {
           vendor_name?: string | null
           brand_name?: string | null
           color?: string | null
+          model?: string | null
           product_type?: 'gadget' | 'non-gadget' | null
           created_at?: string
           updated_at?: string
@@ -120,6 +122,7 @@ export interface Database {
           vendor_name?: string | null
           brand_name?: string | null
           color?: string | null
+          model?: string | null
           product_type?: 'gadget' | 'non-gadget' | null
           created_at?: string
           updated_at?: string

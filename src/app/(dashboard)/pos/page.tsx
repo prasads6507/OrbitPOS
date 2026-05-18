@@ -110,13 +110,29 @@ export default function POSPage() {
     setLoading(false);
   };
 
-  // Intercept changes in search to check for model barcode scans directly
+  // Intercept changes in search to check for barcode scans directly
   const handleSearchChange = async (val: string) => {
     setSearch(val);
     if (!storeToUse) return;
 
-    // Check if searched value matches a variant barcode directly (for seamless register scanning)
+    // Check if searched value matches a product barcode directly (barcode scanner types and may press Enter)
     if (val.length >= 4) {
+      // 1. First check main products table barcode
+      const { data: pMatch } = await supabase
+        .from('products')
+        .select('*')
+        .eq('barcode', val)
+        .eq('store_id', storeToUse)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (pMatch) {
+        setSearch('');
+        handleItemSelection(pMatch);
+        return;
+      }
+
+      // 2. Then check variant barcodes
       const { data: vMatch } = await supabase
         .from('product_variants')
         .select('*, products(*)')
@@ -127,6 +143,7 @@ export default function POSPage() {
       if (vMatch && vMatch.products) {
         setSearch('');
         handleItemSelection(vMatch.products, vMatch);
+        return;
       }
     }
   };

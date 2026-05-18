@@ -26,9 +26,6 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Cell
 } from 'recharts';
 import { 
   format, 
@@ -432,12 +429,12 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Top Vendors & Items Bar Chart */}
+        {/* Top Products Leaderboard */}
         <div className="lg:col-span-3 bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm mt-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h3 className="text-xl font-bold text-black" style={{fontFamily: 'var(--font-outfit)'}}>Top Product Sales by Vendor</h3>
-              <p className="text-[13px] text-gray-400 font-medium">Visualizing top-selling items and their suppliers</p>
+              <h3 className="text-xl font-bold text-black" style={{fontFamily: 'var(--font-outfit)'}}>Product Performance</h3>
+              <p className="text-[13px] text-gray-400 font-medium">Top-selling products ranked by units sold</p>
             </div>
             <div className="flex items-center gap-4">
               <Button 
@@ -460,72 +457,75 @@ export default function DashboardPage() {
                 }}
               >
                 <Download className="h-4 w-4 mr-2" />
-                Export Complete Data
+                Export Data
               </Button>
             </div>
           </div>
-          <div className="h-[380px] w-full">
+          <div className="space-y-4">
             {loading ? (
-              <div className="h-full flex items-center justify-center">
+              <div className="py-20 flex items-center justify-center">
                 <RefreshCw className="h-8 w-8 animate-spin text-gray-300" />
               </div>
             ) : vendorData.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-gray-300">
+              <div className="py-20 flex flex-col items-center justify-center text-gray-300">
                 <Package className="h-12 w-12 mb-3 opacity-30" />
                 <p className="font-medium text-gray-400">No data available for this period</p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={vendorData} layout="vertical" margin={{ left: 40, right: 30, top: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gradBlue" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#00c6ff" />
-                      <stop offset="100%" stopColor="#0072ff" />
-                    </linearGradient>
-                    <linearGradient id="gradGreen" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#11998e" />
-                      <stop offset="100%" stopColor="#38ef7d" />
-                    </linearGradient>
-                    <linearGradient id="gradOrange" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#ff9900" />
-                      <stop offset="100%" stopColor="#ff5500" />
-                    </linearGradient>
-                    <linearGradient id="gradPurple" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#8a2387" />
-                      <stop offset="100%" stopColor="#e94057" />
-                    </linearGradient>
-                    <linearGradient id="gradRed" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#f857a6" />
-                      <stop offset="100%" stopColor="#ff5858" />
-                    </linearGradient>
-                  </defs>
-                  <XAxis type="number" hide />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fill: '#1d1d1f', fontSize: 11, fontWeight: 700}} 
-                    width={200}
-                  />
-                  <Tooltip 
-                    cursor={{fill: 'rgba(0,0,0,0.02)', radius: 12}} 
-                    contentStyle={{
-                      borderRadius: '24px', 
-                      border: 'none', 
-                      boxShadow: '0 20px 40px rgba(0,0,0,0.06)',
-                      background: 'rgba(255, 255, 255, 0.8)',
-                      backdropFilter: 'blur(20px)',
-                      padding: '16px'
-                    }}
-                  />
-                  <Bar dataKey="value" radius={[99, 99, 99, 99]} barSize={16}>
-                    {vendorData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={['url(#gradBlue)', 'url(#gradGreen)', 'url(#gradOrange)', 'url(#gradPurple)', 'url(#gradRed)'][index % 5]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              vendorData.map((item, index) => {
+                const maxVal = vendorData[0]?.value || 1;
+                const percentage = Math.round((item.value / maxVal) * 100);
+                const parts = item.name.split(' - ');
+                const vendorName = parts[0] || 'Generic';
+                const productName = parts[1] || item.name;
+                
+                const rankStyles = [
+                  { bg: 'bg-gradient-to-r from-amber-400 to-yellow-300', text: 'text-amber-900', medal: '🥇', barGrad: 'from-amber-400 via-yellow-400 to-orange-400' },
+                  { bg: 'bg-gradient-to-r from-gray-300 to-slate-200', text: 'text-gray-700', medal: '🥈', barGrad: 'from-slate-400 via-gray-400 to-zinc-400' },
+                  { bg: 'bg-gradient-to-r from-orange-400 to-amber-600', text: 'text-orange-900', medal: '🥉', barGrad: 'from-orange-400 via-rose-400 to-pink-500' },
+                  { bg: 'bg-gray-100', text: 'text-gray-500', medal: '', barGrad: 'from-violet-500 via-purple-500 to-indigo-500' },
+                  { bg: 'bg-gray-100', text: 'text-gray-500', medal: '', barGrad: 'from-cyan-500 via-teal-400 to-emerald-500' },
+                ];
+                const style = rankStyles[index] || rankStyles[4];
+
+                return (
+                  <div 
+                    key={index} 
+                    className="group relative flex items-center gap-5 p-5 rounded-[1.5rem] border border-gray-50 hover:border-gray-100 bg-[#fbfbfd] hover:bg-white transition-all duration-300 hover:shadow-lg hover:shadow-black/[0.03] cursor-default"
+                    style={{ animationDelay: `${index * 80}ms` }}
+                  >
+                    {/* Rank */}
+                    <div className={`w-12 h-12 rounded-2xl ${style.bg} flex items-center justify-center shrink-0 shadow-sm group-hover:scale-110 transition-transform duration-300`}>
+                      {style.medal ? (
+                        <span className="text-xl leading-none">{style.medal}</span>
+                      ) : (
+                        <span className={`text-lg font-black ${style.text}`}>#{index + 1}</span>
+                      )}
+                    </div>
+
+                    {/* Product Details + Progress */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="min-w-0 flex-1 mr-4">
+                          <p className="font-black text-black text-[15px] truncate group-hover:text-[#0071e3] transition-colors">{productName}</p>
+                          <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider truncate">{vendorName}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-black text-black text-lg tabular-nums">{item.value} <span className="text-[11px] text-gray-400 font-bold">units</span></p>
+                          <p className="text-[12px] text-emerald-500 font-bold">${item.revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        </div>
+                      </div>
+                      {/* Animated Progress Bar */}
+                      <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full bg-gradient-to-r ${style.barGrad} transition-all duration-1000 ease-out group-hover:shadow-lg`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import { useActiveStore } from '@/store/useActiveStore';
+import { fetchProfileServer } from '@/app/actions/profile';
 
 interface AuthState {
   user: any | null;
@@ -35,36 +36,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     try {
-      // 1. Fetch Profile
-      const { data: profile, error: pError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+      // Use server action to fetch profile (bypasses RLS via service role key)
+      const { profile, store: storeData, error } = await fetchProfileServer(userId);
 
-      if (pError) {
-        console.error('Profile fetch error:', JSON.stringify(pError, null, 2));
+      if (error) {
+        console.error('Profile fetch error:', error);
       }
 
       if (!profile) {
         console.warn('No profile found for user:', userId);
         set({ loading: false });
         return;
-      }
-
-      // 2. Fetch Store if exists
-      let storeData = null;
-      if ((profile as any).store_id) {
-        const { data: store, error: sError } = await supabase
-          .from('stores' as any)
-          .select('*')
-          .eq('id', (profile as any).store_id)
-          .maybeSingle();
-        
-        if (sError) {
-          console.error('Store fetch error:', JSON.stringify(sError, null, 2));
-        }
-        storeData = store;
       }
 
       // Automatically align activeStore context to user's assigned store if not matching

@@ -41,24 +41,23 @@ export function LoginForm({ variant = 'card', theme = 'light' }: LoginFormProps)
 
       if (error) throw error;
 
-      // 2. Fetch Profile to determine role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single();
+      // 2. Fetch Profile to determine role (via server action to bypass RLS)
+      const { fetchProfileServer } = await import('@/app/actions/profile');
+      const { profile } = await fetchProfileServer(data.user.id);
 
       if (!profile) {
         console.log('Self-repairing missing profile...');
-        const { data: newProfile } = await supabase.from('profiles').insert({
+        // Use server action for insert too
+        const { createProfileServer } = await import('@/app/actions/profile');
+        const result = await createProfileServer({
           id: data.user.id,
           full_name: data.user.user_metadata?.full_name || 'Orbit User',
           email: email,
           role: data.user.user_metadata?.role || 'admin',
           store_id: '00000000-0000-0000-0000-000000000000',
-        }).select('role').single();
+        });
         
-        if (newProfile?.role === 'super_admin') {
+        if (result?.profile?.role === 'super_admin') {
           router.push('/super-admin');
         } else {
           router.push('/dashboard');

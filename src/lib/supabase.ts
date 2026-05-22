@@ -13,7 +13,7 @@ const RLS_TABLES = new Set([
   'profiles', 'products', 'orders', 'order_items', 'inventory_logs',
   'attendance', 'stores', 'categories', 'customers', 'payroll',
   'vendor_invoices', 'stock_transfers', 'shifts', 'settings',
-  'product_variants', 'serialized_inventory', 'form_submissions'
+  'product_variants', 'serialized_inventory', 'form_submissions', 'activity_logs'
 ]);
 
 /**
@@ -39,6 +39,8 @@ function createSafeQueryBuilder(table: string) {
     gte(col: string, val: any) { _filters.push({ column: col, op: 'gte', value: val }); return chain; },
     lte(col: string, val: any) { _filters.push({ column: col, op: 'lte', value: val }); return chain; },
     in(col: string, vals: any[]) { _filters.push({ column: col, op: 'in', value: vals }); return chain; },
+    is(col: string, val: any) { _filters.push({ column: col, op: 'is', value: val }); return chain; },
+    filter(col: string, op: string, val: any) { _filters.push({ column: col, op: 'filter', value: op, value2: val }); return chain; },
     order(col: string, opts?: { ascending?: boolean }) { _order = { column: col, ascending: opts?.ascending }; return chain; },
     limit(n: number) { _limit = n; return chain; },
     insert(data: any) { _insertData = data; return chain; },

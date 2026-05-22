@@ -12,7 +12,7 @@ export async function serverQuery(
   table: string,
   options?: {
     select?: string;
-    filters?: { column: string; op: 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte' | 'in'; value: any }[];
+    filters?: { column: string; op: 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte' | 'in' | 'is' | 'filter'; value: any; value2?: any }[];
     order?: { column: string; ascending?: boolean };
     limit?: number;
     single?: boolean;
@@ -27,6 +27,8 @@ export async function serverQuery(
       for (const f of options.filters) {
         if (f.op === 'in') {
           query = (query as any).in(f.column, f.value);
+        } else if (f.op === 'filter') {
+          query = (query as any).filter(f.column, f.value, f.value2);
         } else {
           query = (query as any)[f.op](f.column, f.value);
         }

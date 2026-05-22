@@ -10,10 +10,10 @@ export default function LoginPage() {
 
       {/* Glossy Glass Card Container */}
       <div className="relative z-10 w-full max-w-[440px] mx-auto p-6 animate-in slide-in-from-bottom-10 fade-in duration-1000">
-        <div className="relative rounded-[2.5rem] bg-white/40 backdrop-blur-3xl border border-white/60 shadow-[0_8px_40px_rgba(0,0,0,0.08)] overflow-hidden">
+        <div className="relative rounded-[2.5rem] bg-white/70 backdrop-blur-3xl border-2 border-white shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2),0_0_20px_rgba(255,255,255,0.8)] overflow-hidden transition-all duration-500 hover:shadow-[0_40px_80px_-20px_rgba(0,113,227,0.3),0_0_30px_rgba(255,255,255,1)] hover:-translate-y-2">
           {/* Inner Gloss Highlights */}
-          <div className="absolute inset-0 rounded-[2.5rem] border border-white/80 pointer-events-none" style={{ clipPath: 'inset(0 0 auto 0)' }} />
-          <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/30 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 rounded-[2.5rem] border-[3px] border-white/50 pointer-events-none" style={{ clipPath: 'inset(0 0 auto 0)' }} />
+          <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/60 to-transparent pointer-events-none" />
           
           <div className="p-10 relative z-20">
             <div className="mb-8 text-center">

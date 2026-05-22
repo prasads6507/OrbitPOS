@@ -170,6 +170,13 @@ export async function createStoreAdmin(formData: {
 
     if (authError) throw authError;
 
+    // Fetch the store's company_id
+    const { data: storeData } = await getSupabaseAdmin()
+      .from('stores')
+      .select('company_id')
+      .eq('id', formData.store_id)
+      .single();
+
     // 2. Create profile entry
     const { error: profileError } = await getSupabaseAdmin()
       .from('profiles')
@@ -179,6 +186,7 @@ export async function createStoreAdmin(formData: {
         full_name: formData.full_name,
         role: 'admin',
         store_id: formData.store_id,
+        company_id: storeData?.company_id || null,
         hourly_rate: 0,
       });
 

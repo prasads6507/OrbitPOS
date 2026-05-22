@@ -52,9 +52,20 @@ export function Header({ onMenuClick }: HeaderProps) {
   const fetchStores = async () => {
     try {
       let query = supabase.from('stores').select('*');
-      if (profile?.company_id) {
+      
+      if (profile?.role === 'super_admin') {
+        // Super admin sees all stores
+      } else if (profile?.company_id) {
+        // Company admins see all stores within their company
         query = query.eq('company_id', profile.company_id);
+      } else if (profile?.store_id) {
+        // Fallback: If an admin somehow has no company_id, they ONLY see their own store
+        query = query.eq('id', profile.store_id);
+      } else {
+        // Safe fallback
+        query = query.eq('id', '00000000-0000-0000-0000-000000000000');
       }
+
       const { data } = await query;
       if (data) {
         setStores(data);

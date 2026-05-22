@@ -206,7 +206,9 @@ export function Header({ onMenuClick }: HeaderProps) {
                 }}
               >
                 <SelectTrigger className="border-0 shadow-none bg-transparent h-auto p-0 focus:ring-0 text-[12px] font-black text-black [&>svg]:ml-2 [&>svg]:text-gray-400">
-                  <SelectValue placeholder="Select a store" />
+                  <SelectValue placeholder="Select a store">
+                    {activeStoreId ? stores.find(s => s.id === activeStoreId)?.name : "Select a store"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-gray-100 shadow-xl">
                   {stores.map(s => (

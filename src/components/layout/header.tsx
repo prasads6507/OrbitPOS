@@ -127,17 +127,26 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   const fetchActivity = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('activity_logs')
         .select(`
           id,
           action,
           description,
           created_at,
-          profiles:employee_id (full_name)
+          profiles:employee_id (full_name),
+          stores!inner (company_id)
         `)
         .order('created_at', { ascending: false })
         .limit(5);
+
+      if (profile?.role !== 'super_admin' && profile?.company_id) {
+        query = query.eq('stores.company_id', profile.company_id);
+      } else if (profile?.role !== 'super_admin') {
+        query = query.eq('store_id', profile?.store_id || '00000000-0000-0000-0000-000000000000');
+      }
+
+      const { data, error } = await query;
         
       if (data) {
         setRecentActivity(data);

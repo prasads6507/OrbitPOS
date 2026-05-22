@@ -31,7 +31,7 @@ export default function ActivityLogsPage() {
       const from = (page - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE; // Fetch one extra to check if next page exists
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('activity_logs')
         .select(`
           id,
@@ -39,10 +39,19 @@ export default function ActivityLogsPage() {
           description,
           created_at,
           profiles:employee_id (full_name),
-          stores:store_id (name)
+          stores!inner (name, company_id)
         `)
         .order('created_at', { ascending: false })
         .range(from, to);
+
+      if (profile?.role !== 'super_admin' && profile?.company_id) {
+        query = query.eq('stores.company_id', profile.company_id);
+      } else if (profile?.role !== 'super_admin') {
+        // Fallback for admins without company_id (should not happen)
+        query = query.eq('store_id', profile?.store_id || '00000000-0000-0000-0000-000000000000');
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching logs:', error);

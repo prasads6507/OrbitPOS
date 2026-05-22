@@ -75,10 +75,11 @@ export default function StockTransferPage() {
       .select('*')
       .eq('store_id', storeToUse);
     
-    const { data: sData } = await supabase
-      .from('stores')
-      .select('*')
-      .neq('id', storeToUse);
+    let storeQuery = supabase.from('stores').select('*').neq('id', storeToUse);
+    if (profile?.role !== 'super_admin' && profile?.company_id) {
+      storeQuery = storeQuery.eq('company_id', profile.company_id);
+    }
+    const { data: sData } = await storeQuery;
 
     if (pData) setProducts(pData);
     if (sData) setStores(sData);

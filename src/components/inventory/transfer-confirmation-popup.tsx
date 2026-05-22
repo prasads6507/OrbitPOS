@@ -74,11 +74,11 @@ export function TransferConfirmationPopup() {
 
       if (data) {
         // Fetch source store name dynamically to avoid POSTGREST relationship constraint bugs
-        const { data: storeData } = await supabase
-          .from('stores')
-          .select('name')
-          .eq('id', data.source_store_id)
-          .single();
+        let storeQuery = supabase.from('stores').select('name').eq('id', data.source_store_id);
+        if (profile?.role !== 'super_admin' && profile?.company_id) {
+          storeQuery = storeQuery.eq('company_id', profile.company_id);
+        }
+        const { data: storeData } = await storeQuery.maybeSingle();
 
         setPendingTransfer({
           ...data,

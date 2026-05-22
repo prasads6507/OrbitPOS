@@ -322,7 +322,7 @@ export default function ReportsPage() {
         <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
           <h3 className="text-xl font-bold text-black mb-1">Revenue Performance</h3>
           <p className="text-[13px] text-gray-400 font-medium mb-8">Breakdown for the selected {timeRange} period</p>
-          <div className="h-[350px] w-full">
+          <div className="h-[350px] w-full min-h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={salesByDay}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -344,26 +344,28 @@ export default function ReportsPage() {
           <div className="h-[350px] w-full flex flex-col items-center justify-center">
             {topProducts.length > 0 ? (
               <>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={topProducts}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={80}
-                      outerRadius={120}
-                      paddingAngle={8}
-                      dataKey="value"
-                    >
-                      {topProducts.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.08)'}}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="w-full flex-1 min-h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={topProducts}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={80}
+                        outerRadius={120}
+                        paddingAngle={8}
+                        dataKey="value"
+                      >
+                        {topProducts.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.08)'}}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
                 <div className="grid grid-cols-2 gap-4 mt-4 w-full">
                   {topProducts.map((p, i) => (
                     <div key={p.name} className="flex items-center gap-2">

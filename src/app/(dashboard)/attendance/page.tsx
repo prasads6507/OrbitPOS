@@ -48,7 +48,7 @@ export default function AttendancePage() {
       .from('attendance')
       .select('*')
       .eq('employee_id', profile.id)
-      .is('clock_out', null)
+      .filter('clock_out', 'is', 'null')
       .single();
 
     setActiveShift(activeData);

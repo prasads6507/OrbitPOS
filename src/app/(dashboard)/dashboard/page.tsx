@@ -336,7 +336,7 @@ export default function DashboardPage() {
               <p className="text-[13px] text-gray-400 font-medium">Visualizing sales performance data</p>
             </div>
           </div>
-          <div className="h-[300px] w-full">
+          <div className="h-[300px] w-full min-h-[300px]">
             {loading ? (
               <div className="h-full flex items-center justify-center">
                 <RefreshCw className="h-8 w-8 animate-spin text-gray-300" />

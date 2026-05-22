@@ -48,7 +48,10 @@ import {
   getAllStores, 
   deleteStore, 
   updateStore, 
-  toggleStoreSuspension 
+  toggleStoreSuspension,
+  createCompany,
+  getCompanies,
+  deleteCompany
 } from '@/app/actions/super-admin';
 import { format } from 'date-fns';
 
@@ -71,12 +74,16 @@ function SuperAdminContent() {
   const [search, setSearch] = useState('');
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
   const [selectedStore, setSelectedStore] = useState<any>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [forceShow, setForceShow] = useState(false);
+  const [companies, setCompanies] = useState<any[]>([]);
 
   // Form states
   const [storeName, setStoreName] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
   const [adminData, setAdminData] = useState({
     email: '',
     full_name: '',
@@ -99,6 +106,7 @@ function SuperAdminContent() {
 
   useEffect(() => {
     if (profile?.role === 'super_admin' || forceShow) {
+      fetchCompanies();
       fetchStores();
       fetchPlatformStats();
     }
@@ -188,12 +196,62 @@ function SuperAdminContent() {
     setLoading(false);
   };
 
-  const handleCreateStore = async (e: React.FormEvent) => {
+  const fetchCompanies = async () => {
+    setLoading(true);
+    try {
+      const res = await getCompanies();
+      if (res.success) {
+        setCompanies(res.companies || []);
+        if (res.companies && res.companies.length > 0 && !selectedCompanyId) {
+          setSelectedCompanyId(res.companies[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Company fetch failed:', err);
+    }
+    setLoading(false);
+  };
+
+  const handleCreateCompany = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!storeName) return;
+    if (!companyName) return;
 
     setLoading(true);
-    const res = await createStore(storeName);
+    const res = await createCompany(companyName);
+    if (res.success) {
+      toast.success('Company created successfully');
+      setCompanyName('');
+      setIsCompanyModalOpen(false);
+      fetchCompanies();
+    } else {
+      toast.error(res.error);
+    }
+    setLoading(false);
+  };
+
+  const handleDeleteCompany = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to PERMANENTLY delete company "${name}"? This will wipe all stores under it.`)) return;
+    setLoading(true);
+    const res = await deleteCompany(id);
+    if (res.success) {
+      toast.success('Company deleted');
+      fetchCompanies();
+      fetchStores();
+    } else {
+      toast.error(res.error);
+    }
+    setLoading(false);
+  };
+
+  const handleCreateStore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!storeName || !selectedCompanyId) {
+      toast.error('Store name and company are required');
+      return;
+    }
+
+    setLoading(true);
+    const res = await createStore(storeName, selectedCompanyId);
     if (res.success) {
       toast.success('Store created successfully');
       setStoreName('');
@@ -326,12 +384,26 @@ function SuperAdminContent() {
                 <div className="p-10 bg-[#fbfbfd] border-b border-gray-50">
                   <DialogHeader>
                     <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center mb-4">
-                      <Building2 className="text-white h-6 w-6" />
+                      <Store className="text-white h-6 w-6" />
                     </div>
                     <DialogTitle className="text-2xl font-black text-black">New Store</DialogTitle>
                   </DialogHeader>
                 </div>
                 <form onSubmit={handleCreateStore} className="p-10 space-y-6 bg-white">
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1">Company</Label>
+                    <select
+                      className="w-full h-14 bg-[#f5f5f7] border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-[#0071e3]/10 font-bold px-4"
+                      value={selectedCompanyId}
+                      onChange={(e) => setSelectedCompanyId(e.target.value)}
+                      required
+                    >
+                      <option value="">Select a Company...</option>
+                      {companies.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="space-y-2">
                     <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1">Store Name</Label>
                     <Input 
@@ -343,6 +415,41 @@ function SuperAdminContent() {
                   </div>
                   <Button type="submit" disabled={loading} className="w-full h-14 bg-black rounded-2xl font-bold shadow-xl shadow-black/10">
                     {loading ? <RefreshCw className="animate-spin h-5 w-5" /> : 'Create Store'}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={isCompanyModalOpen} onOpenChange={setIsCompanyModalOpen}>
+              <DialogTrigger 
+                render={
+                  <Button variant="outline" className="h-14 px-6 rounded-2xl border-gray-100 font-bold shadow-sm hover:bg-gray-50">
+                    <Building2 className="mr-2 h-5 w-5 text-indigo-500" />
+                    New Company
+                  </Button>
+                }
+              />
+              <DialogContent className="sm:max-w-[440px] rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden">
+                <div className="p-10 bg-[#fbfbfd] border-b border-gray-50">
+                  <DialogHeader>
+                    <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center mb-4">
+                      <Building2 className="text-white h-6 w-6" />
+                    </div>
+                    <DialogTitle className="text-2xl font-black text-black">New Company</DialogTitle>
+                  </DialogHeader>
+                </div>
+                <form onSubmit={handleCreateCompany} className="p-10 space-y-6 bg-white">
+                  <div className="space-y-2">
+                    <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1">Company Name</Label>
+                    <Input 
+                      placeholder="e.g. Acme Corp" 
+                      className="h-14 bg-[#f5f5f7] border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-indigo-500/10 font-bold"
+                      value={companyName}
+                      onChange={e => setCompanyName(e.target.value)}
+                    />
+                  </div>
+                  <Button type="submit" disabled={loading} className="w-full h-14 bg-indigo-500 hover:bg-indigo-600 rounded-2xl text-white font-bold shadow-xl shadow-indigo-500/20">
+                    {loading ? <RefreshCw className="animate-spin h-5 w-5" /> : 'Create Company'}
                   </Button>
                 </form>
               </DialogContent>
@@ -431,6 +538,7 @@ function SuperAdminContent() {
             <TableHeader>
               <TableRow className="border-gray-50 bg-[#fbfbfd]">
                 <TableHead className="font-bold text-black pl-8 h-16">Store Name</TableHead>
+                <TableHead className="font-bold text-black h-16">Company</TableHead>
                 <TableHead className="font-bold text-black h-16">Store ID</TableHead>
                 <TableHead className="font-bold text-black h-16">Created</TableHead>
                 <TableHead className="font-bold text-black text-right pr-8 h-16">Actions</TableHead>
@@ -461,6 +569,11 @@ function SuperAdminContent() {
                         </div>
                         <span className="font-bold text-black text-lg">{store.name}</span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-[13px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                        {store.company_name}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <code className="text-[12px] bg-gray-50 px-2 py-1 rounded-md text-gray-500 font-medium">

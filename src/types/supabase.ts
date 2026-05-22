@@ -14,49 +14,72 @@ export interface Database {
           id: string
           full_name: string | null
           email: string | null
-          role: 'admin' | 'cashier' | 'employee'
+          role: 'admin' | 'cashier' | 'employee' | 'super_admin'
           hourly_rate: number
           created_at: string
           updated_at: string
           store_id: string | null
+          company_id: string | null
         }
         Insert: {
           id: string
           full_name?: string | null
           email?: string | null
-          role?: 'admin' | 'cashier' | 'employee'
+          role?: 'admin' | 'cashier' | 'employee' | 'super_admin'
           hourly_rate?: number
           created_at?: string
           updated_at?: string
           store_id?: string | null
+          company_id?: string | null
         }
         Update: {
           id?: string
           full_name?: string | null
           email?: string | null
-          role?: 'admin' | 'cashier' | 'employee'
+          role?: 'admin' | 'cashier' | 'employee' | 'super_admin'
           hourly_rate?: number
           created_at?: string
           updated_at?: string
           store_id?: string | null
+          company_id?: string | null
+        }
+      }
+      companies: {
+        Row: {
+          id: string
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          created_at?: string
         }
       }
       stores: {
         Row: {
           id: string
           name: string
+          company_id: string | null
           branding_logo: string | null
           created_at: string
         }
         Insert: {
           id?: string
           name: string
+          company_id?: string | null
           branding_logo?: string | null
           created_at?: string
         }
         Update: {
           id?: string
           name?: string
+          company_id?: string | null
           branding_logo?: string | null
           created_at?: string
         }

@@ -13,7 +13,8 @@ const RLS_TABLES = new Set([
   'profiles', 'products', 'orders', 'order_items', 'inventory_logs',
   'attendance', 'stores', 'categories', 'customers', 'payroll',
   'vendor_invoices', 'stock_transfers', 'shifts', 'settings',
-  'product_variants', 'serialized_inventory', 'form_submissions', 'activity_logs'
+  'product_variants', 'serialized_inventory', 'form_submissions', 'activity_logs',
+  'companies'
 ]);
 
 /**

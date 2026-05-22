@@ -13,11 +13,11 @@ const getSupabaseAdmin = () => {
   );
 };
 
-export async function createStore(name: string, branding_logo?: string) {
+export async function createStore(name: string, company_id: string, branding_logo?: string) {
   try {
     const { data, error } = await getSupabaseAdmin()
       .from('stores')
-      .insert({ name, branding_logo })
+      .insert({ name, company_id, branding_logo })
       .select()
       .single();
 
@@ -26,6 +26,64 @@ export async function createStore(name: string, branding_logo?: string) {
   } catch (error: any) {
     console.error('Error creating store:', error);
     return { error: error.message || 'Failed to create store' };
+  }
+}
+
+export async function createCompany(name: string) {
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from('companies')
+      .insert({ name })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { success: true, company: data };
+  } catch (error: any) {
+    console.error('Error creating company:', error);
+    return { error: error.message || 'Failed to create company' };
+  }
+}
+
+export async function getCompanies() {
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from('companies')
+      .select(`
+        *,
+        stores(count)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return { success: true, companies: data || [] };
+  } catch (error: any) {
+    console.error('Error fetching companies:', error);
+    return { error: error.message || 'Failed to fetch companies' };
+  }
+}
+
+export async function deleteCompany(companyId: string) {
+  try {
+    const adminClient = getSupabaseAdmin();
+    // 1. Fetch stores
+    const { data: stores } = await adminClient.from('stores').select('id').eq('company_id', companyId);
+    
+    // 2. Delete each store (which cascades into all products/orders/etc)
+    if (stores && stores.length > 0) {
+      for (const store of stores) {
+        await deleteStore(store.id);
+      }
+    }
+    
+    // 3. Delete company
+    const { error } = await adminClient.from('companies').delete().eq('id', companyId);
+    if (error) throw error;
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Delete company error:', error);
+    return { success: false, error: error.message };
   }
 }
 
@@ -142,6 +200,7 @@ export async function getAllStores() {
       .from('stores')
       .select(`
         *,
+        companies(name),
         profiles!profiles_store_id_fkey(count)
       `)
       .order('created_at', { ascending: false });
@@ -157,7 +216,11 @@ export async function getAllStores() {
         .eq('role', 'admin')
         .limit(1);
       
-      return { ...store, admin: admins?.[0] || null };
+      return { 
+        ...store, 
+        admin: admins?.[0] || null,
+        company_name: store.companies?.name || 'Unassigned'
+      };
     }));
 
     return { success: true, stores: storesWithAdmins };

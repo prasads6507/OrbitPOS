@@ -51,7 +51,11 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   const fetchStores = async () => {
     try {
-      const { data } = await supabase.from('stores').select('*');
+      let query = supabase.from('stores').select('*');
+      if (profile?.company_id) {
+        query = query.eq('company_id', profile.company_id);
+      }
+      const { data } = await query;
       if (data) {
         setStores(data);
         // Default sync on first load

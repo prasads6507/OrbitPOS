@@ -40,6 +40,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [lowStockItems, setLowStockItems] = useState<any[]>([]);
   const [pendingTransfers, setPendingTransfers] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   // Fetch all stores for switcher
   useEffect(() => {
@@ -104,6 +105,31 @@ export function Header({ onMenuClick }: HeaderProps) {
   const fetchNotifications = () => {
     fetchLowStock();
     fetchPendingTransfers();
+    if (profile?.role === 'admin') {
+      fetchActivity();
+    }
+  };
+
+  const fetchActivity = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .select(`
+          id,
+          action,
+          description,
+          created_at,
+          profiles:employee_id (full_name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
+        
+      if (data) {
+        setRecentActivity(data);
+      }
+    } catch (err) {
+      console.log('Activity logs not available yet.');
+    }
   };
 
   const fetchLowStock = async () => {
@@ -163,7 +189,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     setOpenConfirmation(true);
   };
 
-  const totalNotifications = lowStockItems.length + pendingTransfers.length;
+  const totalNotifications = lowStockItems.length + pendingTransfers.length + recentActivity.length;
   const currentActiveStoreName = stores.find(s => s.id === activeStoreId)?.name || profile?.stores?.name || 'Primary Store';
 
   return (
@@ -297,8 +323,26 @@ export function Header({ onMenuClick }: HeaderProps) {
                           </div>
                         </div>
                       </DropdownMenuItem>
-                    ))
-                    }
+                    ))}
+
+                    {/* Activity Logs (e.g. Clock ins) */}
+                    {recentActivity.map((log) => (
+                      <DropdownMenuItem 
+                        key={log.id} 
+                        className="p-3 focus:bg-emerald-50/50 rounded-xl cursor-pointer group"
+                        onSelect={() => router.push('/admin/activity-logs')}
+                      >
+                        <div className="flex items-center gap-4 w-full">
+                          <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center group-hover:bg-white transition-colors">
+                            <Bell className="h-5 w-5 text-emerald-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-bold text-black truncate">{log.profiles?.full_name || 'System'}</p>
+                            <p className="text-[11px] font-medium text-emerald-600 truncate">{log.description}</p>
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
                   </>
                 )}
               </div>
@@ -311,9 +355,13 @@ export function Header({ onMenuClick }: HeaderProps) {
             <p className="text-[13px] font-bold text-black leading-none mb-1">{profile?.full_name?.split(' ')[0] || 'User'}</p>
             <p className="text-[11px] font-medium text-gray-400 capitalize">{currentActiveStoreName}</p>
           </div>
-          <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden cursor-pointer relative">
-             <div className="w-full h-full bg-gray-50 absolute" />
-             <span className="text-black font-bold text-sm relative">{profile?.full_name?.charAt(0)}</span>
+          <div className="relative">
+            <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden cursor-pointer relative">
+               <div className="w-full h-full bg-gray-50 absolute" />
+               <span className="text-black font-bold text-sm relative">{profile?.full_name?.charAt(0)}</span>
+            </div>
+            {/* Green dot for online status */}
+            <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full z-10 shadow-sm" title="Online" />
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { TransferConfirmationPopup } from '@/components/inventory/transfer-confirmation-popup';
+import { ClientTracker } from '@/components/layout/client-tracker';
 
 export default function DashboardLayout({
   children,
@@ -37,6 +38,7 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
+      <ClientTracker />
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <Header onMenuClick={() => setIsSidebarOpen(true)} />

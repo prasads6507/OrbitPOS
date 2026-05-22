@@ -107,6 +107,16 @@ export default function AttendancePage() {
       setActiveShift(data);
       toast.success('Clocked in successfully');
       fetchAttendance();
+      
+      // Log activity
+      supabase.from('activity_logs').insert({
+        employee_id: profile.id,
+        store_id: profile.store_id || '00000000-0000-0000-0000-000000000000',
+        action: 'clock_in',
+        description: 'Clocked in for shift'
+      }).then(({ error: logError }) => {
+        if (logError) console.error('Failed to log activity:', logError);
+      });
     }
   };
 
@@ -132,6 +142,16 @@ export default function AttendancePage() {
       setActiveShift(null);
       toast.success('Clocked out successfully');
       fetchAttendance();
+      
+      // Log activity
+      supabase.from('activity_logs').insert({
+        employee_id: profile.id,
+        store_id: profile.store_id || '00000000-0000-0000-0000-000000000000',
+        action: 'clock_out',
+        description: `Clocked out after ${totalHours.toFixed(2)} hours`
+      }).then(({ error: logError }) => {
+        if (logError) console.error('Failed to log activity:', logError);
+      });
     }
   };
 

@@ -81,7 +81,7 @@ export default function EmployeesPage() {
       .from('attendance')
       .select('employee_id')
       .eq('store_id', storeToUse)
-      .filter('clock_out', 'is', 'null');
+      .is('clock_out', null);
       
     if (activeShifts) {
       const onlineIds = new Set(activeShifts.map(s => s.employee_id));

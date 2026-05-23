@@ -369,25 +369,25 @@ function SuperAdminContent() {
           src="/super-admin-banner.png" 
           alt="OrbitPOS Infrastructure Banner" 
           fill
-          className="object-cover opacity-90 mix-blend-luminosity"
+          className="object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-[#f5f5f7]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-white/20 to-[#f5f5f7]" />
         
         <div className="absolute bottom-0 w-full p-8 md:p-12">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div className="flex items-center gap-4 text-left">
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-xl border border-white/30 rounded-2xl flex items-center justify-center shadow-2xl">
-                <ShieldCheck className="text-white h-8 w-8" />
+              <div className="w-16 h-16 bg-black/5 backdrop-blur-xl border border-black/10 rounded-2xl flex items-center justify-center shadow-lg">
+                <ShieldCheck className="text-black h-8 w-8" />
               </div>
               <div>
-                <h1 className="text-4xl font-black text-white tracking-tight drop-shadow-md">Super Admin Portal</h1>
-                <p className="text-white/80 font-medium mt-1 text-lg">Manage OrbitPOS architecture securely.</p>
+                <h1 className="text-4xl font-black text-black tracking-tight drop-shadow-sm">Super Admin Portal</h1>
+                <p className="text-gray-600 font-medium mt-1 text-lg">Manage OrbitPOS architecture securely.</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
               <Link href="/super-admin/profile">
-                <Button variant="outline" className="h-12 px-6 rounded-xl bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20 font-bold transition-all shadow-lg">
+                <Button variant="outline" className="h-12 px-6 rounded-xl bg-white/50 backdrop-blur-md border-gray-200 text-black hover:bg-white/80 font-bold transition-all shadow-sm">
                   <User className="mr-2 h-4 w-4" />
                   Admin Profile
                 </Button>
@@ -395,7 +395,7 @@ function SuperAdminContent() {
               <Button 
                 variant="ghost" 
                 onClick={handleLogout}
-                className="h-12 px-6 rounded-xl text-white/70 hover:text-white hover:bg-white/10 backdrop-blur-md border border-transparent hover:border-white/20 font-bold transition-all shadow-lg"
+                className="h-12 px-6 rounded-xl text-gray-600 hover:text-black hover:bg-white/50 backdrop-blur-md border border-transparent hover:border-gray-200 font-bold transition-all shadow-sm"
               >
                 <LogOut className="mr-2 h-4 w-4" />
                 Sign Out

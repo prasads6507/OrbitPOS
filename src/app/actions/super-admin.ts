@@ -63,6 +63,34 @@ export async function getCompanies() {
   }
 }
 
+export async function getPlatformStats(companyId: string = 'all') {
+  try {
+    const adminClient = getSupabaseAdmin();
+    
+    let storesQuery = adminClient.from('stores').select('*', { count: 'exact', head: true });
+    let usersQuery = adminClient.from('profiles').select('*', { count: 'exact', head: true });
+
+    if (companyId !== 'all') {
+      storesQuery = storesQuery.eq('company_id', companyId);
+      usersQuery = usersQuery.eq('company_id', companyId);
+    }
+
+    const { count: storesCount } = await storesQuery;
+    const { count: usersCount } = await usersQuery;
+
+    return { 
+      success: true, 
+      stats: {
+        totalStores: storesCount || 0,
+        totalUsers: usersCount || 0
+      }
+    };
+  } catch (error: any) {
+    console.error('Error fetching platform stats:', error);
+    return { error: error.message || 'Failed to fetch platform stats' };
+  }
+}
+
 export async function deleteCompany(companyId: string) {
   try {
     const adminClient = getSupabaseAdmin();

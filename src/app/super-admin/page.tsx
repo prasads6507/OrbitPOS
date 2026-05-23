@@ -49,7 +49,8 @@ import {
   createCompany,
   getCompanies,
   deleteCompany,
-  createSuperAdmin
+  createSuperAdmin,
+  getPlatformStats
 } from '@/app/actions/super-admin';
 import { format } from 'date-fns';
 
@@ -174,21 +175,10 @@ function SuperAdminContent() {
 
   const fetchPlatformStats = async (companyId: string = 'all') => {
     try {
-      let storesQuery = supabase.from('stores').select('*', { count: 'exact', head: true });
-      let usersQuery = supabase.from('profiles').select('*', { count: 'exact', head: true });
-
-      if (companyId !== 'all') {
-        storesQuery = storesQuery.eq('company_id', companyId);
-        usersQuery = usersQuery.eq('company_id', companyId);
+      const res = await getPlatformStats(companyId);
+      if (res.success && res.stats) {
+        setStats(res.stats);
       }
-
-      const { count: storesCount } = await storesQuery;
-      const { count: usersCount } = await usersQuery;
-
-      setStats({
-        totalStores: storesCount || 0,
-        totalUsers: usersCount || 0,
-      });
     } catch (err) {
       console.error('Stats fetch failed:', err);
     }

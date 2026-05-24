@@ -36,7 +36,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { CreateEmployeeDialog } from '@/components/admin/employees/create-employee-dialog';
-import { DollarSign } from 'lucide-react';
+import { IndianRupee } from 'lucide-react';
 import { updateEmployeeRole, updateEmployeePayRate, deleteEmployee, resetEmployeePassword } from '@/app/actions/employees';
 
 import { useActiveStore } from '@/store/useActiveStore';

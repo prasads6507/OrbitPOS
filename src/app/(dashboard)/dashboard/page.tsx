@@ -8,7 +8,7 @@ import {
   TrendingUp, 
   Users, 
   Package, 
-  DollarSign, 
+  IndianRupee, 
   ArrowUpRight, 
   ArrowDownRight,
   CalendarDays,
@@ -301,7 +301,7 @@ export default function DashboardPage() {
           title="Total Revenue" 
           value={loading ? '...' : `₹${stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
           subtitle={`Total for ${timeRange} period`}
-          icon={DollarSign}
+          icon={IndianRupee}
           color="blue"
         />
         <StatsCard 

@@ -468,7 +468,7 @@ export default function POSPage() {
                       onClick={() => setDiscount(discount, 'amount')}
                       className={cn("px-1.5 py-0.5 rounded-md text-[9px] font-bold transition-all", discountType === 'amount' ? "bg-rose-500 text-white" : "text-rose-400")}
                     >
-                      $
+                      ₹
                     </button>
                     <button 
                       onClick={() => setDiscount(discount, 'percentage')}

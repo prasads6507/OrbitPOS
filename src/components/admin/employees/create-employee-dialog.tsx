@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Loader2, DollarSign, Mail, User, Lock } from 'lucide-react';
+import { Plus, Loader2, IndianRupee, Mail, User, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { createEmployee } from '@/app/actions/employees';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -149,7 +149,7 @@ export function CreateEmployeeDialog({ onSuccess, storeId }: CreateEmployeeDialo
               <div className="space-y-2">
                 <Label className="text-[12px] font-bold text-gray-400 uppercase tracking-widest ml-1">Hourly Rate (Pay)</Label>
                 <div className="relative">
-                  <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <IndianRupee className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input 
                     type="number"
                     step="0.01"

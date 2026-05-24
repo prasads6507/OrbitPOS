@@ -7,7 +7,7 @@ import {
   Download, 
   TrendingUp, 
   ShoppingBag, 
-  DollarSign, 
+  IndianRupee, 
   Calendar,
   RefreshCw,
   PieChart as PieChartIcon
@@ -311,10 +311,10 @@ export default function ReportsPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <ReportCard title="Net Revenue" value={`₹${summary.totalRevenue.toLocaleString()}`} icon={DollarSign} color="blue" />
+        <ReportCard title="Net Revenue" value={`₹${summary.totalRevenue.toLocaleString()}`} icon={IndianRupee} color="blue" />
         <ReportCard title="Total Loss" value={`₹${summary.totalLoss.toLocaleString()}`} icon={TrendingUp} color="rose" />
         <ReportCard title="Orders" value={summary.totalOrders.toString()} icon={ShoppingBag} color="indigo" />
-        <ReportCard title="Avg Order" value={`₹${summary.avgOrderValue.toFixed(2)}`} icon={DollarSign} color="emerald" />
+        <ReportCard title="Avg Order" value={`₹${summary.avgOrderValue.toFixed(2)}`} icon={IndianRupee} color="emerald" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

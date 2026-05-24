@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useCartStore } from '@/store/useCartStore';
 import { 
@@ -116,8 +116,52 @@ export default function POSPage() {
 
   // Receipt Reprinting state
   const [receiptData, setReceiptData] = useState<any | null>(null);
-
   const storeToUse = activeStoreId || profile?.store_id;
+
+  const customerStats = useMemo(() => {
+    if (!pastOrders || pastOrders.length === 0) {
+      return {
+        lifetimeSpent: 0,
+        totalOrders: 0,
+        aov: 0,
+        topProducts: []
+      };
+    }
+    
+    let spent = 0;
+    let orderCount = 0;
+    const productCounts: Record<string, { name: string; quantity: number }> = {};
+    
+    pastOrders.forEach(order => {
+      if (order.payment_status === 'completed' || order.payment_status === 'partially_refunded') {
+        spent += order.total_amount;
+        orderCount++;
+      }
+      
+      order.order_items?.forEach((item: any) => {
+        const name = item.products?.name || 'Unknown Product';
+        const qty = (item.quantity || 0) - (item.refunded_quantity || 0);
+        if (qty > 0) {
+          if (productCounts[name]) {
+            productCounts[name].quantity += qty;
+          } else {
+            productCounts[name] = { name, quantity: qty };
+          }
+        }
+      });
+    });
+    
+    const topProds = Object.values(productCounts)
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 5);
+      
+    return {
+      lifetimeSpent: spent,
+      totalOrders: orderCount,
+      aov: orderCount > 0 ? spent / orderCount : 0,
+      topProducts: topProds
+    };
+  }, [pastOrders]);
 
   const handleCustomerSearch = async (query: string) => {
     setCustSearch(query);
@@ -680,6 +724,73 @@ export default function POSPage() {
           </Button>
         </div>
 
+        {/* Customer Identity Bar (Placed at Top) */}
+        <div className="px-6 py-3 border-b border-gray-50 bg-[#f5f5f7]/30 shrink-0">
+          {customer ? (
+            <div className="bg-white border border-gray-100 rounded-2xl p-3.5 space-y-3.5 shadow-sm transition-all duration-300">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-black text-black text-[13px]">{customer.full_name}</span>
+                    <Badge className="bg-[#0071e3]/10 text-[#0071e3] border-none font-bold text-[8px] h-3.5 px-1.5 py-0">
+                      {customer.loyalty_points} pts
+                    </Badge>
+                  </div>
+                  <p className="text-[10px] text-gray-400 font-bold mt-1">
+                    {customer.phone || customer.email || 'No contact details'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-lg text-[#0071e3] hover:bg-[#0071e3]/10"
+                    onClick={() => setHistoryOpen(true)}
+                  >
+                    <History className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-lg text-rose-500 hover:bg-rose-50"
+                    onClick={() => { setCustomer(null); setRedeemPoints(false); }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {customer.loyalty_points >= 100 && (
+                <div className="flex items-center justify-between bg-gray-50 border border-gray-100 p-2 rounded-xl">
+                  <div className="flex flex-col">
+                    <span className="text-[8px] font-black uppercase text-emerald-600 tracking-wider">Loyalty Reward</span>
+                    <span className="text-[9px] font-black text-gray-700">2% off for 100 points</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRedeemPoints(!redeemPoints)}
+                    className={cn(
+                      "w-9 h-5 rounded-full p-0.5 transition-colors duration-200 outline-none flex items-center",
+                      redeemPoints ? "bg-emerald-500 justify-end" : "bg-gray-200 justify-start"
+                    )}
+                  >
+                    <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full text-gray-500 border-dashed border-gray-200 hover:border-[#0071e3] hover:text-[#0071e3] font-black text-[10px] h-10 rounded-2xl uppercase tracking-widest transition-all active:scale-95 bg-white"
+              onClick={() => setAssignOpen(true)}
+            >
+              <UserPlus className="mr-1.5 h-4 w-4" />
+              Assign Customer
+            </Button>
+          )}
+        </div>
+
         {/* Scrollable Cart Items */}
         <ScrollArea className="flex-1 min-h-0 px-6">
           {items.length === 0 ? (
@@ -827,70 +938,6 @@ export default function POSPage() {
               CHARGE
             </Button>
           </div>
-          
-          {customer ? (
-            <div className="mt-3 bg-blue-50/50 border border-blue-100/50 rounded-2xl p-4 space-y-3 transition-all animate-in fade-in duration-300">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-black text-black text-[13px]">{customer.full_name}</span>
-                    <Badge className="bg-[#0071e3]/10 text-[#0071e3] border-none font-bold text-[8px] h-3.5 px-1 py-0">
-                      {customer.loyalty_points} pts
-                    </Badge>
-                  </div>
-                  <p className="text-[10px] text-gray-400 font-bold mt-1">
-                    {customer.phone || customer.email || 'No contact details'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 rounded-lg text-[#0071e3] hover:bg-[#0071e3]/10"
-                    onClick={() => setHistoryOpen(true)}
-                  >
-                    <History className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 rounded-lg text-rose-500 hover:bg-rose-50"
-                    onClick={() => { setCustomer(null); setRedeemPoints(false); }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {customer.loyalty_points >= 100 && (
-                <div className="flex items-center justify-between bg-white border border-blue-100 p-2.5 rounded-xl">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-bold uppercase text-emerald-600 tracking-wider">Loyalty Reward</span>
-                    <span className="text-[10px] font-black text-gray-700">2% off for 100 points</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRedeemPoints(!redeemPoints)}
-                    className={cn(
-                      "w-10 h-6 rounded-full p-0.5 transition-colors duration-200 outline-none flex items-center",
-                      redeemPoints ? "bg-emerald-500 justify-end" : "bg-gray-200 justify-start"
-                    )}
-                  >
-                    <div className="w-5 h-5 rounded-full bg-white shadow-sm" />
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              className="w-full text-gray-500 border-dashed border-gray-200 hover:border-[#0071e3] hover:text-[#0071e3] font-black text-[10px] h-10 rounded-2xl uppercase tracking-widest mt-3 transition-all active:scale-95"
-              onClick={() => setAssignOpen(true)}
-            >
-              <UserPlus className="mr-1.5 h-4 w-4" />
-              Assign Customer
-            </Button>
-          )}
         </div>
 
         {/* Checkout Dialog */}
@@ -1129,89 +1176,167 @@ export default function POSPage() {
 
       {/* Customer Purchase History Modal */}
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="sm:max-w-[540px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-white max-h-[90vh] flex flex-col">
-          <div className="p-8 bg-[#fbfbfd] border-b border-gray-50">
+        <DialogContent className="sm:max-w-[880px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-white max-h-[85vh] flex flex-col">
+          {/* Modal Header */}
+          <div className="p-8 bg-[#fbfbfd] border-b border-gray-50 shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center">
                   <History className="text-white h-5 w-5" />
                 </div>
                 <div>
-                  <DialogTitle className="text-xl font-black text-black tracking-tight">Purchase History</DialogTitle>
-                  <p className="text-gray-400 font-bold text-[11px] mt-0.5">{customer?.full_name}</p>
+                  <DialogTitle className="text-xl font-black text-black tracking-tight">Customer Intelligence Profile</DialogTitle>
+                  <p className="text-gray-400 font-bold text-[11px] mt-0.5">Unified CRM Dashboard</p>
                 </div>
               </div>
-              <Badge className="bg-[#0071e3] text-white border-none font-black text-[10px] px-3 py-1 rounded-lg">
+              <Badge className="bg-[#0071e3] text-white border-none font-black text-[10px] px-3.5 py-1.5 rounded-xl shadow-md shadow-blue-500/10">
                 {customer?.loyalty_points || 0} Points Balance
               </Badge>
             </div>
           </div>
 
-          <div className="p-8 flex-1 overflow-y-auto custom-scrollbar space-y-4">
-            {loadingHistory ? (
-              <div className="text-center py-20"><Loader2 className="animate-spin h-10 w-10 text-gray-200 mx-auto" /></div>
-            ) : pastOrders.length === 0 ? (
-              <div className="text-center py-20 space-y-3">
-                <PackageX className="h-14 w-14 text-gray-200 mx-auto" />
-                <h3 className="text-lg font-black text-black">No Purchases Recorded</h3>
-                <p className="text-gray-400 font-bold text-[12px] max-w-[280px] mx-auto">This customer has not completed any transactions yet.</p>
+          {/* Dual-Column Split Body */}
+          <div className="flex-1 overflow-hidden flex flex-col md:flex-row min-h-0">
+            
+            {/* Left Column: Customer Profile Stats & Top Products Graph */}
+            <div className="w-full md:w-[340px] border-r border-gray-100 p-8 overflow-y-auto custom-scrollbar space-y-6 bg-gray-50/20 shrink-0 flex flex-col justify-start">
+              
+              {/* Profile Card */}
+              <div className="bg-white border border-gray-100/80 rounded-2xl p-5 shadow-sm space-y-3.5">
+                <div>
+                  <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">Active Customer</span>
+                  <h3 className="text-[16px] font-black text-black leading-tight mt-0.5">{customer?.full_name}</h3>
+                </div>
+                <div className="space-y-1.5 text-[11px] font-bold text-gray-500">
+                  <p className="flex justify-between"><span>Phone:</span> <span className="text-black font-extrabold">{customer?.phone || 'Not provided'}</span></p>
+                  <p className="flex justify-between"><span>Email:</span> <span className="text-black font-extrabold truncate max-w-[170px]">{customer?.email || 'Not provided'}</span></p>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {pastOrders.map((order) => (
-                  <div key={order.id} className="border border-gray-100 rounded-2xl p-5 hover:border-gray-200 transition-all space-y-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-black text-black text-[13px]">ORDER #{order.id.slice(0, 8).toUpperCase()}</p>
-                        <p className="text-[10px] text-gray-400 font-bold mt-1">
-                          {new Date(order.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-black text-black text-base">₹{order.total_amount.toFixed(2)}</span>
-                        <div className="flex items-center gap-1.5 justify-end mt-1">
-                          <Badge className={cn("border-none font-black text-[9px] h-4 px-1.5", order.payment_status === 'completed' ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600")}>
-                            {order.payment_status.toUpperCase()}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Order Items Summary */}
-                    <div className="bg-gray-50/50 rounded-xl p-3.5 space-y-1.5 text-[12px]">
-                      {order.order_items.map((oi: any, idx: number) => (
-                        <div key={idx} className="flex justify-between text-gray-600">
-                          <span className="font-bold truncate max-w-[260px]">{oi.products?.name} {oi.product_variants?.model_name ? `(${oi.product_variants.model_name})` : ''}</span>
-                          <span className="text-gray-400 font-medium">x{oi.quantity} - ₹{(oi.quantity * oi.unit_price).toFixed(2)}</span>
-                        </div>
-                      ))}
-                    </div>
+              {/* Statistics KPIs Grid */}
+              <div className="grid grid-cols-3 gap-2.5">
+                <div className="bg-white border border-gray-100 rounded-xl p-3 text-center shadow-sm">
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-wider">Total Spent</p>
+                  <p className="text-[12px] font-black text-black mt-1">₹{customerStats.lifetimeSpent.toFixed(0)}</p>
+                </div>
+                <div className="bg-white border border-gray-100 rounded-xl p-3 text-center shadow-sm">
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-wider">Visits</p>
+                  <p className="text-[12px] font-black text-black mt-1">{customerStats.totalOrders}</p>
+                </div>
+                <div className="bg-white border border-gray-100 rounded-xl p-3 text-center shadow-sm">
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-wider">AOV</p>
+                  <p className="text-[12px] font-black text-black mt-1">₹{customerStats.aov.toFixed(0)}</p>
+                </div>
+              </div>
 
-                    <div className="flex items-center justify-between text-[11px] font-bold text-gray-400 border-t border-dashed border-gray-100 pt-3">
-                      <div className="flex gap-4">
-                        <span>Earned: <span className="text-[#0071e3] font-black">{order.points_earned || 0} pts</span></span>
-                        {order.points_redeemed > 0 && (
-                          <span>Redeemed: <span className="text-rose-500 font-black">{order.points_redeemed} pts</span></span>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 rounded-lg text-black font-bold text-[11px] px-3 hover:bg-gray-50"
-                          onClick={() => handleReprint(order)}
-                        >
-                          <Printer className="h-3.5 w-3.5 mr-1" /> Reprint
-                        </Button>
-                      </div>
-                    </div>
+              {/* Top Products Graph */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4 flex-1 min-h-0 flex flex-col justify-start">
+                <div>
+                  <h4 className="text-[11px] font-black text-black uppercase tracking-widest">📊 Top Products Purchased</h4>
+                  <p className="text-[10px] text-gray-400 font-bold mt-0.5">By net unit purchase volume</p>
+                </div>
+
+                {customerStats.topProducts.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center py-6 text-gray-300">
+                    <ShoppingCart className="h-7 w-7 opacity-30 mb-2" />
+                    <p className="text-[11px] font-bold text-gray-400">No purchase volume records.</p>
                   </div>
-                ))}
+                ) : (
+                  <div className="space-y-4 overflow-y-auto custom-scrollbar pr-1">
+                    {customerStats.topProducts.map((prod, idx) => {
+                      const maxQty = customerStats.topProducts[0]?.quantity || 1;
+                      const percentage = Math.round((prod.quantity / maxQty) * 100);
+                      return (
+                        <div key={idx} className="space-y-2">
+                          <div className="flex justify-between text-[11px] font-bold leading-tight">
+                            <span className="text-gray-700 truncate max-w-[160px]">{prod.name}</span>
+                            <span className="text-[#0071e3] font-black">{prod.quantity} units</span>
+                          </div>
+                          <div className="h-2 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                            <div 
+                              className="h-full bg-gradient-to-r from-[#0071e3] to-[#00bbf9] rounded-full transition-all duration-700 shadow-sm" 
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Right Column: Transaction Log Checklist */}
+            <div className="flex-1 p-8 overflow-y-auto custom-scrollbar space-y-4">
+              <h4 className="text-[11px] font-black text-black uppercase tracking-widest shrink-0 mb-1">📜 Transaction History</h4>
+              
+              {loadingHistory ? (
+                <div className="text-center py-24"><Loader2 className="animate-spin h-8 w-8 text-gray-200 mx-auto" /></div>
+              ) : pastOrders.length === 0 ? (
+                <div className="text-center py-20 space-y-3">
+                  <PackageX className="h-14 w-14 text-gray-200 mx-auto" />
+                  <h3 className="text-lg font-black text-black">No Purchases Recorded</h3>
+                  <p className="text-gray-400 font-bold text-[12px] max-w-[280px] mx-auto">This customer has not completed any transactions yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  {pastOrders.map((order) => (
+                    <div key={order.id} className="border border-gray-100 rounded-2xl p-5 hover:border-gray-200 hover:shadow-md hover:scale-[1.005] transition-all space-y-4 bg-white">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-black text-black text-[13px] tracking-tight">ORDER #{order.id.slice(0, 8).toUpperCase()}</p>
+                          <p className="text-[10px] text-gray-400 font-bold mt-1">
+                            {new Date(order.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-black text-black text-base">₹{order.total_amount.toFixed(2)}</span>
+                          <div className="flex items-center gap-1.5 justify-end mt-1">
+                            <Badge className={cn("border-none font-black text-[9px] h-4 px-1.5 rounded-lg", order.payment_status === 'completed' ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600")}>
+                              {order.payment_status.toUpperCase()}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Order Items Summary */}
+                      <div className="bg-[#f8f9fa] rounded-xl p-3.5 space-y-1.5 text-[12px]">
+                        {order.order_items.map((oi: any, idx: number) => (
+                          <div key={idx} className="flex justify-between text-gray-600">
+                            <span className="font-bold truncate max-w-[260px]">{oi.products?.name} {oi.product_variants?.model_name ? `(${oi.product_variants.model_name})` : ''}</span>
+                            <span className="text-gray-400 font-medium">x{oi.quantity} - ₹{(oi.quantity * oi.unit_price).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] font-bold text-gray-400 border-t border-dashed border-gray-100 pt-3">
+                        <div className="flex gap-4">
+                          <span>Earned: <span className="text-[#0071e3] font-black">+{order.points_earned || 0} pts</span></span>
+                          {order.points_redeemed > 0 && (
+                            <span>Redeemed: <span className="text-rose-500 font-black">-{order.points_redeemed} pts</span></span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 rounded-lg text-black border-gray-200 hover:border-black font-bold text-[11px] px-3 bg-white"
+                            onClick={() => handleReprint(order)}
+                          >
+                            <Printer className="h-3.5 w-3.5 mr-1" /> Reprint
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="p-6 border-t border-gray-50 bg-[#fbfbfd] flex justify-end">
-            <Button className="rounded-xl font-bold bg-black text-white hover:bg-gray-800" onClick={() => setHistoryOpen(false)}>Close</Button>
+
+          {/* Modal Footer */}
+          <div className="p-6 border-t border-gray-50 bg-[#fbfbfd] flex justify-end shrink-0">
+            <Button className="rounded-xl font-bold bg-black text-white hover:bg-gray-800 px-6" onClick={() => setHistoryOpen(false)}>Close</Button>
           </div>
         </DialogContent>
       </Dialog>

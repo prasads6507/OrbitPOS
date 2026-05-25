@@ -168,7 +168,17 @@ export function CheckoutDialog({
           .update({ loyalty_points: newPoints })
           .eq('id', customer.id);
         
-        if (customerUpdateError) console.error("Error updating customer points:", customerUpdateError);
+        if (customerUpdateError) {
+          console.error("Error updating customer points:", customerUpdateError);
+        } else {
+          // Update local store customer points so receipt and profile show correct points instantly
+          useCartStore.setState({
+            customer: {
+              ...customer,
+              loyalty_points: newPoints
+            }
+          });
+        }
       }
 
       const orderItems = items.map(item => ({

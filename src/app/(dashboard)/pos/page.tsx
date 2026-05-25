@@ -235,6 +235,17 @@ export default function POSPage() {
     if (!customer || !storeToUse) return;
     setLoadingHistory(true);
     try {
+      // Synchronize latest customer details (points balance) in real-time
+      const { data: latestCustomer } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('id', customer.id)
+        .single();
+      
+      if (latestCustomer) {
+        setCustomer(latestCustomer);
+      }
+
       const { data, error } = await supabase
         .from('orders')
         .select(`

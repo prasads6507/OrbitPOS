@@ -432,10 +432,10 @@ export default function POSPage() {
   };
 
   useEffect(() => {
-    if (historyOpen && customer) {
+    if (historyOpen && customer?.id) {
       fetchCustomerHistory();
     }
-  }, [historyOpen, customer]);
+  }, [historyOpen, customer?.id]);
 
   const fetchStoreSettings = async () => {
     if (!storeToUse) return;

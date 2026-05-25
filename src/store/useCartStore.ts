@@ -26,6 +26,7 @@ export interface Customer {
 
 export interface LoyaltySettings {
   earn_ratio: number;
+  earn_value: number;
   redeem_ratio: number;
   discount_percent: number;
 }
@@ -57,6 +58,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   redeemPoints: false,
   loyaltySettings: {
     earn_ratio: 100,
+    earn_value: 1,
     redeem_ratio: 100,
     discount_percent: 2,
   },

@@ -428,16 +428,33 @@ export default function POSPage() {
     try {
       const { data, error } = await supabase
         .from('stores')
-        .select('loyalty_points_earn_ratio, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent')
+        .select('loyalty_points_earn_ratio, loyalty_points_earn_value, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent')
         .eq('id', storeToUse)
         .single();
       
       if (data) {
         setLoyaltySettings({
           earn_ratio: data.loyalty_points_earn_ratio ?? 100,
+          earn_value: data.loyalty_points_earn_value ?? 1,
           redeem_ratio: data.loyalty_points_redeem_ratio ?? 100,
           discount_percent: data.loyalty_points_redeem_discount_percent !== null ? parseFloat(data.loyalty_points_redeem_discount_percent) : 2.00
         });
+      } else if (error) {
+        // Fallback: fetch without loyalty_points_earn_value
+        const { data: fallbackData } = await supabase
+          .from('stores')
+          .select('loyalty_points_earn_ratio, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent')
+          .eq('id', storeToUse)
+          .single();
+        
+        if (fallbackData) {
+          setLoyaltySettings({
+            earn_ratio: fallbackData.loyalty_points_earn_ratio ?? 100,
+            earn_value: 1,
+            redeem_ratio: fallbackData.loyalty_points_redeem_ratio ?? 100,
+            discount_percent: fallbackData.loyalty_points_redeem_discount_percent !== null ? parseFloat(fallbackData.loyalty_points_redeem_discount_percent) : 2.00
+          });
+        }
       }
     } catch (err) {
       console.error('Error fetching store loyalty settings:', err);

@@ -134,7 +134,7 @@ export function CheckoutDialog({
     }
     setStep('processing');
     try {
-      const pointsEarned = customer ? Math.floor(total / loyaltySettings.earn_ratio) : 0;
+      const pointsEarned = customer ? Math.floor(total / loyaltySettings.earn_ratio) * loyaltySettings.earn_value : 0;
       const pointsRedeemed = customer && redeemPoints && customer.loyalty_points >= loyaltySettings.redeem_ratio ? loyaltySettings.redeem_ratio : 0;
 
       const pointsDiscount = (customer && redeemPoints && customer.loyalty_points >= loyaltySettings.redeem_ratio) ? (subtotal + tax - discount) * (loyaltySettings.discount_percent / 100) : 0;

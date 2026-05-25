@@ -10,7 +10,12 @@ const BACKGROUND_IMAGES = [
   '/images/bg_boutique.png',
   '/images/bg_bakery.png',
   '/images/bg_florist.png',
-  '/images/bg_market.png'
+  '/images/bg_market.png',
+  '/images/bg_mobile.png',
+  '/images/bg_tech.png',
+  '/images/bg_jewelry.png',
+  '/images/bg_salon.png',
+  '/images/bg_wellness.png'
 ];
 
 export default function LoginPage() {

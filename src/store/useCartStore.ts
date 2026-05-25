@@ -31,6 +31,13 @@ export interface LoyaltySettings {
   discount_percent: number;
 }
 
+export interface TaxSettings {
+  tax1_name: string;
+  tax1_rate: number;
+  tax2_name: string;
+  tax2_rate: number;
+}
+
 interface CartState {
   items: CartItem[];
   addItem: (product: Product, details?: { variant_id?: string; variant_name?: string; price?: number; serial_number?: string; selected_serials?: string[]; sku?: string; stock_quantity?: number }) => void;
@@ -40,6 +47,8 @@ interface CartState {
   total: number;
   subtotal: number;
   tax: number;
+  tax1: number;
+  tax2: number;
   discount: number;
   discountType: 'amount' | 'percentage';
   setDiscount: (amount: number, type?: 'amount' | 'percentage') => void;
@@ -50,6 +59,8 @@ interface CartState {
   setRedeemPoints: (redeem: boolean) => void;
   loyaltySettings: LoyaltySettings;
   setLoyaltySettings: (settings: Partial<LoyaltySettings>) => void;
+  taxSettings: TaxSettings;
+  setTaxSettings: (settings: Partial<TaxSettings>) => void;
 }
 
 export const useCartStore = create<CartState>((set, get) => ({
@@ -62,9 +73,21 @@ export const useCartStore = create<CartState>((set, get) => ({
     redeem_ratio: 100,
     discount_percent: 2,
   },
+  taxSettings: {
+    tax1_name: 'CGST',
+    tax1_rate: 4,
+    tax2_name: 'SGST',
+    tax2_rate: 4,
+  },
   setLoyaltySettings: (settings) => {
     set((state) => ({
       loyaltySettings: { ...state.loyaltySettings, ...settings }
+    }));
+    get().calculateTotals();
+  },
+  setTaxSettings: (settings) => {
+    set((state) => ({
+      taxSettings: { ...state.taxSettings, ...settings }
     }));
     get().calculateTotals();
   },
@@ -164,9 +187,11 @@ export const useCartStore = create<CartState>((set, get) => ({
     });
     get().calculateTotals();
   },
-  clearCart: () => set({ items: [], total: 0, subtotal: 0, tax: 0, discount: 0, discountType: 'amount', customer: null, redeemPoints: false }),
+  clearCart: () => set({ items: [], total: 0, subtotal: 0, tax: 0, tax1: 0, tax2: 0, discount: 0, discountType: 'amount', customer: null, redeemPoints: false }),
   subtotal: 0,
   tax: 0,
+  tax1: 0,
+  tax2: 0,
   discount: 0,
   discountType: 'amount',
   total: 0,
@@ -178,7 +203,12 @@ export const useCartStore = create<CartState>((set, get) => ({
     const redeemPoints = get().redeemPoints;
     
     const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    const tax = subtotal * 0.08; // 8% tax
+    
+    // Calculate custom taxes
+    const taxSettings = get().taxSettings;
+    const tax1 = subtotal * (taxSettings.tax1_rate / 100);
+    const tax2 = subtotal * (taxSettings.tax2_rate / 100);
+    const tax = tax1 + tax2;
     
     let discountValue = 0;
     if (discountType === 'percentage') {
@@ -195,6 +225,6 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
 
     const total = Math.max(0, subtotal + tax - discountValue - pointsDiscountValue);
-    set({ subtotal, tax, total });
+    set({ subtotal, tax, tax1, tax2, total });
   },
 }));;

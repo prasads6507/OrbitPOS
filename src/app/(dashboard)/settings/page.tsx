@@ -43,6 +43,10 @@ export default function SettingsPage() {
     loyalty_points_earn_value: 1,
     loyalty_points_redeem_ratio: 100,
     loyalty_points_redeem_discount_percent: 2,
+    tax1_name: 'CGST',
+    tax1_rate: 4,
+    tax2_name: 'SGST',
+    tax2_rate: 4,
   });
 
   const storeToUse = activeStoreId || profile?.store_id;
@@ -64,7 +68,7 @@ export default function SettingsPage() {
   const fetchStoreData = async (storeId: string) => {
     const { data, error } = await supabase
       .from('stores')
-      .select('auto_print_receipt, loyalty_points_earn_ratio, loyalty_points_earn_value, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent')
+      .select('auto_print_receipt, loyalty_points_earn_ratio, loyalty_points_earn_value, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent, tax1_name, tax1_rate, tax2_name, tax2_rate')
       .eq('id', storeId)
       .single();
     
@@ -75,13 +79,17 @@ export default function SettingsPage() {
         loyalty_points_earn_value: data.loyalty_points_earn_value ?? 1,
         loyalty_points_redeem_ratio: data.loyalty_points_redeem_ratio ?? 100,
         loyalty_points_redeem_discount_percent: data.loyalty_points_redeem_discount_percent !== null ? parseFloat(data.loyalty_points_redeem_discount_percent) : 2,
+        tax1_name: (data as any).tax1_name ?? 'CGST',
+        tax1_rate: (data as any).tax1_rate !== null && (data as any).tax1_rate !== undefined ? parseFloat((data as any).tax1_rate) : 4.00,
+        tax2_name: (data as any).tax2_name ?? 'SGST',
+        tax2_rate: (data as any).tax2_rate !== null && (data as any).tax2_rate !== undefined ? parseFloat((data as any).tax2_rate) : 4.00,
       });
     } else if (error) {
-      console.warn("Failed to fetch loyalty settings from DB, using defaults:", error.message);
-      // Fallback: fetch only auto_print_receipt and legacy settings
+      console.warn("Failed to fetch settings from DB, trying fallback query:", error.message);
+      // Fallback 1: fetch without custom tax columns
       const { data: fallbackData } = await supabase
         .from('stores')
-        .select('auto_print_receipt, loyalty_points_earn_ratio, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent')
+        .select('auto_print_receipt, loyalty_points_earn_ratio, loyalty_points_earn_value, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent')
         .eq('id', storeId)
         .single();
       
@@ -89,10 +97,35 @@ export default function SettingsPage() {
         setStoreSettings({
           auto_print_receipt: fallbackData.auto_print_receipt ?? true,
           loyalty_points_earn_ratio: fallbackData.loyalty_points_earn_ratio ?? 100,
-          loyalty_points_earn_value: 1,
+          loyalty_points_earn_value: fallbackData.loyalty_points_earn_value ?? 1,
           loyalty_points_redeem_ratio: fallbackData.loyalty_points_redeem_ratio ?? 100,
           loyalty_points_redeem_discount_percent: fallbackData.loyalty_points_redeem_discount_percent !== null ? parseFloat(fallbackData.loyalty_points_redeem_discount_percent) : 2,
+          tax1_name: 'CGST',
+          tax1_rate: 4.00,
+          tax2_name: 'SGST',
+          tax2_rate: 4.00,
         });
+      } else {
+        // Fallback 2: fetch without loyalty_points_earn_value either
+        const { data: finalFallback } = await supabase
+          .from('stores')
+          .select('auto_print_receipt, loyalty_points_earn_ratio, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent')
+          .eq('id', storeId)
+          .single();
+        
+        if (finalFallback) {
+          setStoreSettings({
+            auto_print_receipt: finalFallback.auto_print_receipt ?? true,
+            loyalty_points_earn_ratio: finalFallback.loyalty_points_earn_ratio ?? 100,
+            loyalty_points_earn_value: 1,
+            loyalty_points_redeem_ratio: finalFallback.loyalty_points_redeem_ratio ?? 100,
+            loyalty_points_redeem_discount_percent: finalFallback.loyalty_points_redeem_discount_percent !== null ? parseFloat(finalFallback.loyalty_points_redeem_discount_percent) : 2,
+            tax1_name: 'CGST',
+            tax1_rate: 4.00,
+            tax2_name: 'SGST',
+            tax2_rate: 4.00,
+          });
+        }
       }
     }
   };
@@ -128,7 +161,7 @@ export default function SettingsPage() {
 
     setLoading(true);
     try {
-      // First try to update all settings (auto_print_receipt + all loyalty columns)
+      // First try to update all settings (auto_print_receipt + loyalty settings + dual-tax settings)
       const { error } = await supabase
         .from('stores')
         .update({
@@ -137,45 +170,65 @@ export default function SettingsPage() {
           loyalty_points_earn_value: parseInt(storeSettings.loyalty_points_earn_value.toString()) || 1,
           loyalty_points_redeem_ratio: parseInt(storeSettings.loyalty_points_redeem_ratio.toString()) || 100,
           loyalty_points_redeem_discount_percent: parseFloat(storeSettings.loyalty_points_redeem_discount_percent.toString()) || 2.00,
+          tax1_name: storeSettings.tax1_name || 'CGST',
+          tax1_rate: parseFloat(storeSettings.tax1_rate.toString()) || 0,
+          tax2_name: storeSettings.tax2_name || 'SGST',
+          tax2_rate: parseFloat(storeSettings.tax2_rate.toString()) || 0,
         })
         .eq('id', storeToUse);
 
       if (error) {
-        console.warn("Saving full custom loyalty settings directly to DB failed (possibly earn_value column doesn't exist yet):", error.message);
+        console.warn("Saving full settings with dual-tax options failed (possibly columns don't exist yet):", error.message);
         
-        // Fallback 1: save auto_print_receipt and legacy loyalty columns (excluding earn_value)
+        // Fallback 1: save auto_print_receipt + loyalty settings (excluding dual-tax columns)
         const { error: fallbackError } = await supabase
           .from('stores')
           .update({
             auto_print_receipt: storeSettings.auto_print_receipt,
             loyalty_points_earn_ratio: parseInt(storeSettings.loyalty_points_earn_ratio.toString()) || 100,
+            loyalty_points_earn_value: parseInt(storeSettings.loyalty_points_earn_value.toString()) || 1,
             loyalty_points_redeem_ratio: parseInt(storeSettings.loyalty_points_redeem_ratio.toString()) || 100,
             loyalty_points_redeem_discount_percent: parseFloat(storeSettings.loyalty_points_redeem_discount_percent.toString()) || 2.00,
           })
           .eq('id', storeToUse);
 
         if (fallbackError) {
-          console.warn("Saving legacy loyalty settings failed too, falling back to auto_print_receipt only:", fallbackError.message);
+          console.warn("Saving full loyalty settings failed, falling back to legacy settings:", fallbackError.message);
           
-          // Fallback 2: save auto_print_receipt only
-          const { error: finalFallbackError } = await supabase
+          // Fallback 2: save legacy loyalty settings (excluding earn_value and dual-tax)
+          const { error: legacyError } = await supabase
             .from('stores')
             .update({
               auto_print_receipt: storeSettings.auto_print_receipt,
+              loyalty_points_earn_ratio: parseInt(storeSettings.loyalty_points_earn_ratio.toString()) || 100,
+              loyalty_points_redeem_ratio: parseInt(storeSettings.loyalty_points_redeem_ratio.toString()) || 100,
+              loyalty_points_redeem_discount_percent: parseFloat(storeSettings.loyalty_points_redeem_discount_percent.toString()) || 2.00,
             })
             .eq('id', storeToUse);
 
-          if (finalFallbackError) throw finalFallbackError;
-          
-          toast.warning('Receipt settings saved. Loyalty settings require database migration to be saved to DB.');
+          if (legacyError) {
+            console.warn("Saving loyalty settings failed completely, falling back to auto_print_receipt only:", legacyError.message);
+            // Fallback 3: save auto_print_receipt only
+            const { error: finalFallbackError } = await supabase
+              .from('stores')
+              .update({
+                auto_print_receipt: storeSettings.auto_print_receipt,
+              })
+              .eq('id', storeToUse);
+
+            if (finalFallbackError) throw finalFallbackError;
+            toast.warning('Receipt printer settings saved. Loyalty and tax configurations require Supabase SQL schema updates.');
+          } else {
+            toast.warning('Settings saved. Dual-tax options and dynamic multipliers require Supabase SQL schema updates.');
+          }
         } else {
-          toast.warning('Settings saved. Custom points multiplier requires database migration to be saved.');
+          toast.warning('Store and loyalty settings saved. Dual-tax settings require Supabase SQL schema updates.');
         }
       } else {
-        toast.success('Store configuration and loyalty settings updated successfully');
+        toast.success('Store, loyalty, and tax configurations updated successfully');
       }
       
-      // Update global state if needed
+      // Update global state
       await fetchProfile(profile.id);
     } catch (error: any) {
       toast.error(error.message || 'Failed to update store settings');
@@ -376,6 +429,78 @@ export default function SettingsPage() {
                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[14px] font-black text-gray-400">%</span>
                           </div>
                           <span className="text-[10px] text-gray-400 font-medium block">Discount percentage applied upon redemption (e.g. 2%).</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Dual-Tax Configuration Section */}
+                    <div className="pt-8 border-t border-gray-50 space-y-6">
+                      <div>
+                        <Label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1 block">Dual-Tax Settings</Label>
+                        <p className="text-[12px] text-gray-400 font-medium ml-1 mt-0.5">Configure individual names and percentage rates for both taxes calculated at checkout.</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Tax 1 Card */}
+                        <div className="bg-[#f5f5f7] p-6 rounded-3xl space-y-4 border border-transparent hover:border-gray-200 hover:bg-white hover:ring-2 hover:ring-[#0071e3]/5 transition-all duration-300">
+                          <Label className="text-[11px] font-black text-gray-400 uppercase tracking-wider block">First Tax Option</Label>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="tax1_name" className="text-[10px] font-bold text-gray-500 uppercase ml-1">Tax Name</Label>
+                              <Input 
+                                id="tax1_name"
+                                className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
+                                value={storeSettings.tax1_name}
+                                onChange={(e) => setStoreSettings({...storeSettings, tax1_name: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="tax1_rate" className="text-[10px] font-bold text-gray-500 uppercase ml-1">Rate (%)</Label>
+                              <div className="relative">
+                                <Input 
+                                  id="tax1_rate"
+                                  type="number"
+                                  step="0.1"
+                                  className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
+                                  value={storeSettings.tax1_rate}
+                                  onChange={(e) => setStoreSettings({...storeSettings, tax1_rate: parseFloat(e.target.value) || 0})}
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[14px] font-black text-gray-400">%</span>
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-gray-400 font-medium block">Standard tax, e.g., CGST, VAT, or Sales Tax.</span>
+                        </div>
+
+                        {/* Tax 2 Card */}
+                        <div className="bg-[#f5f5f7] p-6 rounded-3xl space-y-4 border border-transparent hover:border-gray-200 hover:bg-white hover:ring-2 hover:ring-[#0071e3]/5 transition-all duration-300">
+                          <Label className="text-[11px] font-black text-gray-400 uppercase tracking-wider block">Second Tax Option</Label>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="tax2_name" className="text-[10px] font-bold text-gray-500 uppercase ml-1">Tax Name</Label>
+                              <Input 
+                                id="tax2_name"
+                                className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
+                                value={storeSettings.tax2_name}
+                                onChange={(e) => setStoreSettings({...storeSettings, tax2_name: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="tax2_rate" className="text-[10px] font-bold text-gray-500 uppercase ml-1">Rate (%)</Label>
+                              <div className="relative">
+                                <Input 
+                                  id="tax2_rate"
+                                  type="number"
+                                  step="0.1"
+                                  className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
+                                  value={storeSettings.tax2_rate}
+                                  onChange={(e) => setStoreSettings({...storeSettings, tax2_rate: parseFloat(e.target.value) || 0})}
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[14px] font-black text-gray-400">%</span>
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-gray-400 font-medium block">Secondary tax, e.g., SGST, Service Tax, or Municipal Levy.</span>
                         </div>
                       </div>
                     </div>

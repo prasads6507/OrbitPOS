@@ -71,6 +71,9 @@ export default function POSPage() {
   const updateQuantity = useCartStore(state => state.updateQuantity);
   const subtotal = useCartStore(state => state.subtotal);
   const tax = useCartStore(state => state.tax);
+  const tax1 = useCartStore(state => state.tax1);
+  const tax2 = useCartStore(state => state.tax2);
+  const taxSettings = useCartStore(state => state.taxSettings);
   const total = useCartStore(state => state.total);
   const discount = useCartStore(state => state.discount);
   const discountType = useCartStore(state => state.discountType);
@@ -437,9 +440,10 @@ export default function POSPage() {
   const fetchStoreSettings = async () => {
     if (!storeToUse) return;
     try {
+      // Fetch loyalty settings along with custom taxes
       const { data, error } = await supabase
         .from('stores')
-        .select('loyalty_points_earn_ratio, loyalty_points_earn_value, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent')
+        .select('loyalty_points_earn_ratio, loyalty_points_earn_value, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent, tax1_name, tax1_rate, tax2_name, tax2_rate')
         .eq('id', storeToUse)
         .single();
       
@@ -450,25 +454,33 @@ export default function POSPage() {
           redeem_ratio: data.loyalty_points_redeem_ratio ?? 100,
           discount_percent: data.loyalty_points_redeem_discount_percent !== null ? parseFloat(data.loyalty_points_redeem_discount_percent) : 2.00
         });
+        
+        // Safely set tax settings, falling back if null/undefined
+        useCartStore.getState().setTaxSettings({
+          tax1_name: (data as any).tax1_name ?? 'CGST',
+          tax1_rate: (data as any).tax1_rate !== null && (data as any).tax1_rate !== undefined ? parseFloat((data as any).tax1_rate) : 4.00,
+          tax2_name: (data as any).tax2_name ?? 'SGST',
+          tax2_rate: (data as any).tax2_rate !== null && (data as any).tax2_rate !== undefined ? parseFloat((data as any).tax2_rate) : 4.00,
+        });
       } else if (error) {
-        // Fallback: fetch without loyalty_points_earn_value
+        // Fallback: try fetching only basic fields if the custom columns don't exist yet
         const { data: fallbackData } = await supabase
           .from('stores')
-          .select('loyalty_points_earn_ratio, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent')
+          .select('loyalty_points_earn_ratio, loyalty_points_earn_value, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent')
           .eq('id', storeToUse)
           .single();
         
         if (fallbackData) {
           setLoyaltySettings({
             earn_ratio: fallbackData.loyalty_points_earn_ratio ?? 100,
-            earn_value: 1,
+            earn_value: fallbackData.loyalty_points_earn_value ?? 1,
             redeem_ratio: fallbackData.loyalty_points_redeem_ratio ?? 100,
             discount_percent: fallbackData.loyalty_points_redeem_discount_percent !== null ? parseFloat(fallbackData.loyalty_points_redeem_discount_percent) : 2.00
           });
         }
       }
     } catch (err) {
-      console.error('Error fetching store loyalty settings:', err);
+      console.error('Error fetching store settings:', err);
     }
   };
 
@@ -925,8 +937,12 @@ export default function POSPage() {
               <span className="text-black">₹{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-[13px] text-gray-400 font-bold">
-              <span>Tax (8%)</span>
-              <span className="text-black">₹{tax.toFixed(2)}</span>
+              <span>{taxSettings.tax1_name} ({taxSettings.tax1_rate.toFixed(1)}%)</span>
+              <span className="text-black">₹{tax1.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-[13px] text-gray-400 font-bold">
+              <span>{taxSettings.tax2_name} ({taxSettings.tax2_rate.toFixed(1)}%)</span>
+              <span className="text-black">₹{tax2.toFixed(2)}</span>
             </div>
             
             <div className="bg-rose-50/30 rounded-xl p-3 border border-rose-100/40">
@@ -1011,6 +1027,9 @@ export default function POSPage() {
           items={items}
           subtotal={subtotal}
           tax={tax}
+          tax1={tax1}
+          tax2={tax2}
+          taxSettings={taxSettings}
           total={total}
           discount={discount}
           discountType={discountType}

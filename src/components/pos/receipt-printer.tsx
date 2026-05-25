@@ -10,6 +10,12 @@ interface ReceiptPrinterProps {
     items: any[];
     subtotal: number;
     tax: number;
+    tax1?: number;
+    tax2?: number;
+    tax1_name?: string;
+    tax1_rate?: number;
+    tax2_name?: string;
+    tax2_rate?: number;
     total: number;
     discount: number;
     cardLast4?: string;
@@ -118,10 +124,23 @@ export function ReceiptPrinter({ receiptData }: ReceiptPrinterProps) {
             <span>SUBTOTAL:</span> 
             <span>{receiptData.type === 'refund' ? '-' : ''}₹{receiptData.subtotal.toFixed(2)}</span>
           </p>
-          <p className="flex justify-between">
-            <span>TAX:</span> 
-            <span>{receiptData.type === 'refund' ? '-' : ''}₹{receiptData.tax.toFixed(2)}</span>
-          </p>
+          {receiptData.tax1 !== undefined && receiptData.tax2 !== undefined ? (
+            <>
+              <p className="flex justify-between">
+                <span>{(receiptData.tax1_name || 'CGST').toUpperCase()} ({(receiptData.tax1_rate || 4).toFixed(1)}%):</span>
+                <span>{receiptData.type === 'refund' ? '-' : ''}₹{receiptData.tax1.toFixed(2)}</span>
+              </p>
+              <p className="flex justify-between">
+                <span>{(receiptData.tax2_name || 'SGST').toUpperCase()} ({(receiptData.tax2_rate || 4).toFixed(1)}%):</span>
+                <span>{receiptData.type === 'refund' ? '-' : ''}₹{receiptData.tax2.toFixed(2)}</span>
+              </p>
+            </>
+          ) : (
+            <p className="flex justify-between">
+              <span>TAX:</span> 
+              <span>{receiptData.type === 'refund' ? '-' : ''}₹{receiptData.tax.toFixed(2)}</span>
+            </p>
+          )}
           {receiptData.discount > 0 && (
             <p className="flex justify-between text-rose-600">
               <span>DISCOUNT:</span> 

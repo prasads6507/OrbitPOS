@@ -38,6 +38,12 @@ interface ReceiptData {
   items: any[];
   subtotal: number;
   tax: number;
+  tax1?: number;
+  tax2?: number;
+  tax1_name?: string;
+  tax1_rate?: number;
+  tax2_name?: string;
+  tax2_rate?: number;
   total: number;
   orderId: string;
   date: string;
@@ -65,6 +71,9 @@ export function CheckoutDialog({
   items,
   subtotal,
   tax,
+  tax1 = 0,
+  tax2 = 0,
+  taxSettings = { tax1_name: 'CGST', tax1_rate: 4, tax2_name: 'SGST', tax2_rate: 4 },
   total,
   discount = 0,
   discountType = 'amount',
@@ -75,6 +84,9 @@ export function CheckoutDialog({
   items: any[],
   subtotal: number,
   tax: number,
+  tax1?: number,
+  tax2?: number,
+  taxSettings?: { tax1_name: string; tax1_rate: number; tax2_name: string; tax2_rate: number },
   total: number,
   discount?: number,
   discountType?: 'amount' | 'percentage',
@@ -249,6 +261,12 @@ export function CheckoutDialog({
         items: [...items],
         subtotal,
         tax,
+        tax1,
+        tax2,
+        tax1_name: taxSettings.tax1_name,
+        tax1_rate: taxSettings.tax1_rate,
+        tax2_name: taxSettings.tax2_name,
+        tax2_rate: taxSettings.tax2_rate,
         total,
         orderId: order.id,
         date: new Date().toLocaleString(),
@@ -453,8 +471,16 @@ export function CheckoutDialog({
     doc.text('Subtotal:', 130, y);
     doc.text(`₹${receiptData.subtotal.toFixed(2)}`, 190, y, { align: 'right' });
     y += 7;
-    doc.text('Tax (8%):', 130, y);
-    doc.text(`₹${receiptData.tax.toFixed(2)}`, 190, y, { align: 'right' });
+    if (receiptData.tax1 !== undefined && receiptData.tax2 !== undefined) {
+      doc.text(`${receiptData.tax1_name || 'CGST'} (${(receiptData.tax1_rate || 4).toFixed(1)}%):`, 130, y);
+      doc.text(`₹${receiptData.tax1.toFixed(2)}`, 190, y, { align: 'right' });
+      y += 7;
+      doc.text(`${receiptData.tax2_name || 'SGST'} (${(receiptData.tax2_rate || 4).toFixed(1)}%):`, 130, y);
+      doc.text(`₹${receiptData.tax2.toFixed(2)}`, 190, y, { align: 'right' });
+    } else {
+      doc.text('Tax (8%):', 130, y);
+      doc.text(`₹${receiptData.tax.toFixed(2)}`, 190, y, { align: 'right' });
+    }
     if (receiptData.discount > 0) {
       y += 7;
       doc.setTextColor(220, 50, 50);

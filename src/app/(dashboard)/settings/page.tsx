@@ -421,42 +421,6 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
-                    {/* Razorpay Merchant Gateway Credentials */}
-                    <div className="pt-8 border-t border-gray-50 space-y-6">
-                      <div>
-                        <Label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1 block">Razorpay Merchant Gateway</Label>
-                        <p className="text-[12px] text-gray-400 font-medium ml-1 mt-0.5">Configure store-specific Razorpay API keys to process credit card and UPI transactions directly into your merchant account.</p>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Key ID input */}
-                        <div className="bg-[#f5f5f7] p-6 rounded-3xl space-y-4 border border-transparent hover:border-gray-200 hover:bg-white hover:ring-2 hover:ring-[#0071e3]/5 transition-all duration-300">
-                          <Label htmlFor="razorpay_key_id" className="text-[11px] font-black text-gray-400 uppercase tracking-wider block">Razorpay Key ID</Label>
-                          <Input 
-                            id="razorpay_key_id"
-                            placeholder="rzp_test_..."
-                            className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
-                            value={storeSettings.razorpay_key_id}
-                            onChange={(e) => setStoreSettings({...storeSettings, razorpay_key_id: e.target.value})}
-                          />
-                          <span className="text-[10px] text-gray-400 font-medium block">Public key, e.g., rzp_test_xxxxx or rzp_live_xxxxx.</span>
-                        </div>
-
-                        {/* Key Secret input */}
-                        <div className="bg-[#f5f5f7] p-6 rounded-3xl space-y-4 border border-transparent hover:border-gray-200 hover:bg-white hover:ring-2 hover:ring-[#0071e3]/5 transition-all duration-300">
-                          <Label htmlFor="razorpay_key_secret" className="text-[11px] font-black text-gray-400 uppercase tracking-wider block">Razorpay Key Secret</Label>
-                          <Input 
-                            id="razorpay_key_secret"
-                            type="password"
-                            placeholder="••••••••••••••••••••"
-                            className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
-                            value={storeSettings.razorpay_key_secret}
-                            onChange={(e) => setStoreSettings({...storeSettings, razorpay_key_secret: e.target.value})}
-                          />
-                          <span className="text-[10px] text-gray-400 font-medium block">Secret key used securely on Next.js server actions.</span>
-                        </div>
-                      </div>
-                    </div>
                   </div>
 
                   <div className="pt-6 border-t border-gray-50 flex justify-end">

@@ -165,3 +165,11 @@ ALTER TABLE public.stores
 ADD COLUMN IF NOT EXISTS razorpay_key_id TEXT,
 ADD COLUMN IF NOT EXISTS razorpay_key_secret TEXT;
 
+-- Alter cash_drawer_logs table to support new audit features (if table already existed)
+ALTER TABLE public.cash_drawer_logs
+ADD COLUMN IF NOT EXISTS refunds_total DECIMAL(10,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS discounts_total DECIMAL(10,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS items_count INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS first_sale_time TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS last_sale_time TIMESTAMPTZ;
+

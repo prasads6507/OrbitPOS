@@ -159,3 +159,9 @@ BEGIN
   VALUES (p_product_id, p_store_id, p_qty, p_reason);
 END;
 $$ LANGUAGE plpgsql;
+
+-- Alter stores table to support store-specific Razorpay payment credentials
+ALTER TABLE public.stores 
+ADD COLUMN IF NOT EXISTS razorpay_key_id TEXT,
+ADD COLUMN IF NOT EXISTS razorpay_key_secret TEXT;
+

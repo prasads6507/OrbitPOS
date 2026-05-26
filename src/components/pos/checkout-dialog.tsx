@@ -166,15 +166,15 @@ export function CheckoutDialog({
       const res = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: paymentAmount, receipt: `pos_${Date.now()}` }),
+        body: JSON.stringify({ amount: paymentAmount, receipt: `pos_${Date.now()}`, storeId: storeToUse }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      const { orderId } = data;
-
+      const { orderId, keyId } = data;
+ 
       return new Promise<{ success: boolean; paymentId: string | null }>((resolve, reject) => {
         const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+          key: keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
           amount: Math.round(paymentAmount * 100),
           currency: 'INR',
           name: 'OrbitPOS',
@@ -185,7 +185,7 @@ export function CheckoutDialog({
               const verifyRes = await fetch('/api/razorpay/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(response),
+                body: JSON.stringify({ ...response, storeId: storeToUse }),
               });
               const { verified, paymentId } = await verifyRes.json();
               
@@ -406,7 +406,7 @@ export function CheckoutDialog({
           await fetch('/api/razorpay/refund', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ paymentId: rzpResult.paymentId, amount: refundAmount }),
+            body: JSON.stringify({ paymentId: rzpResult.paymentId, amount: refundAmount, storeId: storeToUse }),
           });
           toast.success('Razorpay transaction successfully rolled back.');
         } catch (refundErr: any) {

@@ -47,6 +47,8 @@ export default function SettingsPage() {
     tax1_rate: 4,
     tax2_name: 'SGST',
     tax2_rate: 4,
+    razorpay_key_id: '',
+    razorpay_key_secret: '',
   });
 
   const storeToUse = activeStoreId || profile?.store_id;
@@ -68,7 +70,7 @@ export default function SettingsPage() {
   const fetchStoreData = async (storeId: string) => {
     const { data, error } = await supabase
       .from('stores')
-      .select('auto_print_receipt, loyalty_points_earn_ratio, loyalty_points_earn_value, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent, tax1_name, tax1_rate, tax2_name, tax2_rate')
+      .select('auto_print_receipt, loyalty_points_earn_ratio, loyalty_points_earn_value, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent, tax1_name, tax1_rate, tax2_name, tax2_rate, razorpay_key_id, razorpay_key_secret')
       .eq('id', storeId)
       .single();
     
@@ -88,6 +90,8 @@ export default function SettingsPage() {
         tax1_rate: data.tax1_rate !== null ? parseFloat(data.tax1_rate) : 4.00,
         tax2_name: data.tax2_name ?? 'SGST',
         tax2_rate: data.tax2_rate !== null ? parseFloat(data.tax2_rate) : 4.00,
+        razorpay_key_id: data.razorpay_key_id ?? '',
+        razorpay_key_secret: data.razorpay_key_secret ?? '',
       });
     }
   };
@@ -134,6 +138,8 @@ export default function SettingsPage() {
           tax1_rate: parseFloat(storeSettings.tax1_rate.toString()) || 0,
           tax2_name: storeSettings.tax2_name || 'SGST',
           tax2_rate: parseFloat(storeSettings.tax2_rate.toString()) || 0,
+          razorpay_key_id: storeSettings.razorpay_key_id || null,
+          razorpay_key_secret: storeSettings.razorpay_key_secret || null,
         })
         .eq('id', storeToUse);
 
@@ -411,6 +417,43 @@ export default function SettingsPage() {
                             </div>
                           </div>
                           <span className="text-[10px] text-gray-400 font-medium block">Secondary tax, e.g., SGST, Service Tax, or Municipal Levy.</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Razorpay Merchant Gateway Credentials */}
+                    <div className="pt-8 border-t border-gray-50 space-y-6">
+                      <div>
+                        <Label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1 block">Razorpay Merchant Gateway</Label>
+                        <p className="text-[12px] text-gray-400 font-medium ml-1 mt-0.5">Configure store-specific Razorpay API keys to process credit card and UPI transactions directly into your merchant account.</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Key ID input */}
+                        <div className="bg-[#f5f5f7] p-6 rounded-3xl space-y-4 border border-transparent hover:border-gray-200 hover:bg-white hover:ring-2 hover:ring-[#0071e3]/5 transition-all duration-300">
+                          <Label htmlFor="razorpay_key_id" className="text-[11px] font-black text-gray-400 uppercase tracking-wider block">Razorpay Key ID</Label>
+                          <Input 
+                            id="razorpay_key_id"
+                            placeholder="rzp_test_..."
+                            className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
+                            value={storeSettings.razorpay_key_id}
+                            onChange={(e) => setStoreSettings({...storeSettings, razorpay_key_id: e.target.value})}
+                          />
+                          <span className="text-[10px] text-gray-400 font-medium block">Public key, e.g., rzp_test_xxxxx or rzp_live_xxxxx.</span>
+                        </div>
+
+                        {/* Key Secret input */}
+                        <div className="bg-[#f5f5f7] p-6 rounded-3xl space-y-4 border border-transparent hover:border-gray-200 hover:bg-white hover:ring-2 hover:ring-[#0071e3]/5 transition-all duration-300">
+                          <Label htmlFor="razorpay_key_secret" className="text-[11px] font-black text-gray-400 uppercase tracking-wider block">Razorpay Key Secret</Label>
+                          <Input 
+                            id="razorpay_key_secret"
+                            type="password"
+                            placeholder="••••••••••••••••••••"
+                            className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
+                            value={storeSettings.razorpay_key_secret}
+                            onChange={(e) => setStoreSettings({...storeSettings, razorpay_key_secret: e.target.value})}
+                          />
+                          <span className="text-[10px] text-gray-400 font-medium block">Secret key used securely on Next.js server actions.</span>
                         </div>
                       </div>
                     </div>

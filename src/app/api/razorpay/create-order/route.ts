@@ -16,11 +16,21 @@ export async function POST(req: NextRequest) {
 
     if (storeId) {
       const supabase = getSupabaseAdmin();
-      const { data: storeData } = await supabase
+      const { data: storeData, error: dbError } = await supabase
         .from('stores')
         .select('razorpay_key_id, razorpay_key_secret')
         .eq('id', storeId)
         .single();
+      
+      if (dbError) {
+        console.error("create-order: Database query error:", dbError);
+      } else {
+        console.log("create-order: Loaded store keys from database:", {
+          storeId,
+          razorpay_key_id: storeData?.razorpay_key_id ? 'present' : 'missing',
+          razorpay_key_secret: storeData?.razorpay_key_secret ? 'present' : 'missing'
+        });
+      }
       
       if (storeData?.razorpay_key_id && storeData?.razorpay_key_secret) {
         keyId = storeData.razorpay_key_id;

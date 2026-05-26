@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { 
   BarChart3, 
@@ -64,6 +65,8 @@ export default function ReportsPage() {
     totalOrders: 0,
     totalLoss: 0,
     avgOrderValue: 0,
+    totalProfit: 0,
+    profitMargin: 0,
   });
   const [timeRange, setTimeRange] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
@@ -118,6 +121,8 @@ export default function ReportsPage() {
         totalOrders: count,
         totalLoss: loss,
         avgOrderValue: count > 0 ? revenue / count : 0,
+        totalProfit: 0,
+        profitMargin: 0,
       });
 
       // 2. Chart Data (Dynamic based on range)
@@ -184,14 +189,32 @@ export default function ReportsPage() {
       }
       setSalesByDay(dailyData);
 
-      // 3. Top Products for this range
+      // 3. Top Products and Cost/Profit Margin calculation for this range
       const { data: items } = await supabase
         .from('order_items')
-        .select('quantity, total_price, products(name), orders!inner(created_at)')
+        .select('quantity, total_price, unit_price, products(name, cost_price), orders!inner(created_at, payment_status)')
         .eq('store_id', storeToUse)
         .gte('orders.created_at', startDate)
-        .lt('orders.created_at', endDate);
-      
+        .lt('orders.created_at', endDate)
+        .neq('orders.payment_status', 'voided');
+
+      let totalCost = 0;
+      items?.forEach((item: any) => {
+        const cost = (item.products?.cost_price || 0) * item.quantity;
+        totalCost += cost;
+      });
+      const totalProfit = revenue - totalCost;
+      const profitMargin = revenue > 0 ? (totalProfit / revenue) * 100 : 0;
+
+      setSummary({
+        totalRevenue: revenue,
+        totalOrders: count,
+        totalLoss: loss,
+        avgOrderValue: count > 0 ? revenue / count : 0,
+        totalProfit,
+        profitMargin,
+      });
+
       const productMap: Record<string, any> = {};
       items?.forEach((item: any) => {
         const name = item.products?.name || 'Unknown';
@@ -250,6 +273,28 @@ export default function ReportsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-black">Sales Reports</h1>
           <p className="text-[#86868b] font-medium mt-1">Comprehensive analysis of your store performance.</p>
         </div>
+      </div>
+
+      {/* Sub reports navigation */}
+      <div className="flex items-center gap-3 bg-[#f5f5f7] p-1.5 rounded-2xl w-fit">
+        <Link href="/admin/reports">
+          <Button variant="ghost" size="sm" className="rounded-xl font-bold text-[12px] h-9 bg-white text-black shadow-sm px-4">
+            Sales & Revenue
+          </Button>
+        </Link>
+        <Link href="/admin/reports/cash-drawer">
+          <Button variant="ghost" size="sm" className="rounded-xl font-bold text-[12px] h-9 text-gray-500 hover:text-black hover:bg-white/50 px-4">
+            Cash Drawer Closure
+          </Button>
+        </Link>
+        <Link href="/admin/reports/gst">
+          <Button variant="ghost" size="sm" className="rounded-xl font-bold text-[12px] h-9 text-gray-500 hover:text-black hover:bg-white/50 px-4">
+            GST Tax Report
+          </Button>
+        </Link>
+      </div>
+
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex bg-white border border-gray-100 p-1 rounded-2xl shadow-sm">
             {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((r) => (
@@ -310,11 +355,13 @@ export default function ReportsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
         <ReportCard title="Net Revenue" value={`₹${summary.totalRevenue.toLocaleString()}`} icon={IndianRupee} color="blue" />
         <ReportCard title="Total Loss" value={`₹${summary.totalLoss.toLocaleString()}`} icon={TrendingUp} color="rose" />
         <ReportCard title="Orders" value={summary.totalOrders.toString()} icon={ShoppingBag} color="indigo" />
         <ReportCard title="Avg Order" value={`₹${summary.avgOrderValue.toFixed(2)}`} icon={IndianRupee} color="emerald" />
+        <ReportCard title="Gross Profit" value={`₹${summary.totalProfit.toLocaleString()}`} icon={TrendingUp} color="emerald" />
+        <ReportCard title="Profit Margin" value={`${summary.profitMargin.toFixed(1)}%`} icon={PieChartIcon} color="violet" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -394,6 +441,7 @@ function ReportCard({ title, value, icon: Icon, color }: any) {
     indigo: 'bg-indigo-50 text-indigo-600',
     emerald: 'bg-emerald-50 text-emerald-600',
     rose: 'bg-rose-50 text-rose-600',
+    violet: 'bg-violet-50 text-violet-600',
   };
 
   return (

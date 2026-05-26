@@ -72,6 +72,11 @@ export default function SettingsPage() {
       .eq('id', storeId)
       .single();
     
+    if (error) {
+      toast.error('Failed to load store settings');
+      return;
+    }
+    
     if (data) {
       setStoreSettings({
         auto_print_receipt: data.auto_print_receipt ?? true,
@@ -79,54 +84,11 @@ export default function SettingsPage() {
         loyalty_points_earn_value: data.loyalty_points_earn_value ?? 1,
         loyalty_points_redeem_ratio: data.loyalty_points_redeem_ratio ?? 100,
         loyalty_points_redeem_discount_percent: data.loyalty_points_redeem_discount_percent !== null ? parseFloat(data.loyalty_points_redeem_discount_percent) : 2,
-        tax1_name: (data as any).tax1_name ?? 'CGST',
-        tax1_rate: (data as any).tax1_rate !== null && (data as any).tax1_rate !== undefined ? parseFloat((data as any).tax1_rate) : 4.00,
-        tax2_name: (data as any).tax2_name ?? 'SGST',
-        tax2_rate: (data as any).tax2_rate !== null && (data as any).tax2_rate !== undefined ? parseFloat((data as any).tax2_rate) : 4.00,
+        tax1_name: data.tax1_name ?? 'CGST',
+        tax1_rate: data.tax1_rate !== null ? parseFloat(data.tax1_rate) : 4.00,
+        tax2_name: data.tax2_name ?? 'SGST',
+        tax2_rate: data.tax2_rate !== null ? parseFloat(data.tax2_rate) : 4.00,
       });
-    } else if (error) {
-      console.warn("Failed to fetch settings from DB, trying fallback query:", error.message);
-      // Fallback 1: fetch without custom tax columns
-      const { data: fallbackData } = await supabase
-        .from('stores')
-        .select('auto_print_receipt, loyalty_points_earn_ratio, loyalty_points_earn_value, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent')
-        .eq('id', storeId)
-        .single();
-      
-      if (fallbackData) {
-        setStoreSettings({
-          auto_print_receipt: fallbackData.auto_print_receipt ?? true,
-          loyalty_points_earn_ratio: fallbackData.loyalty_points_earn_ratio ?? 100,
-          loyalty_points_earn_value: fallbackData.loyalty_points_earn_value ?? 1,
-          loyalty_points_redeem_ratio: fallbackData.loyalty_points_redeem_ratio ?? 100,
-          loyalty_points_redeem_discount_percent: fallbackData.loyalty_points_redeem_discount_percent !== null ? parseFloat(fallbackData.loyalty_points_redeem_discount_percent) : 2,
-          tax1_name: 'CGST',
-          tax1_rate: 4.00,
-          tax2_name: 'SGST',
-          tax2_rate: 4.00,
-        });
-      } else {
-        // Fallback 2: fetch without loyalty_points_earn_value either
-        const { data: finalFallback } = await supabase
-          .from('stores')
-          .select('auto_print_receipt, loyalty_points_earn_ratio, loyalty_points_redeem_ratio, loyalty_points_redeem_discount_percent')
-          .eq('id', storeId)
-          .single();
-        
-        if (finalFallback) {
-          setStoreSettings({
-            auto_print_receipt: finalFallback.auto_print_receipt ?? true,
-            loyalty_points_earn_ratio: finalFallback.loyalty_points_earn_ratio ?? 100,
-            loyalty_points_earn_value: 1,
-            loyalty_points_redeem_ratio: finalFallback.loyalty_points_redeem_ratio ?? 100,
-            loyalty_points_redeem_discount_percent: finalFallback.loyalty_points_redeem_discount_percent !== null ? parseFloat(finalFallback.loyalty_points_redeem_discount_percent) : 2,
-            tax1_name: 'CGST',
-            tax1_rate: 4.00,
-            tax2_name: 'SGST',
-            tax2_rate: 4.00,
-          });
-        }
-      }
     }
   };
 
@@ -158,10 +120,8 @@ export default function SettingsPage() {
   const handleSavePayments = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!storeToUse) return;
-
     setLoading(true);
     try {
-      // First try to update all settings (auto_print_receipt + loyalty settings + dual-tax settings)
       const { error } = await supabase
         .from('stores')
         .update({
@@ -177,59 +137,9 @@ export default function SettingsPage() {
         })
         .eq('id', storeToUse);
 
-      if (error) {
-        console.warn("Saving full settings with dual-tax options failed (possibly columns don't exist yet):", error.message);
-        
-        // Fallback 1: save auto_print_receipt + loyalty settings (excluding dual-tax columns)
-        const { error: fallbackError } = await supabase
-          .from('stores')
-          .update({
-            auto_print_receipt: storeSettings.auto_print_receipt,
-            loyalty_points_earn_ratio: parseInt(storeSettings.loyalty_points_earn_ratio.toString()) || 100,
-            loyalty_points_earn_value: parseInt(storeSettings.loyalty_points_earn_value.toString()) || 1,
-            loyalty_points_redeem_ratio: parseInt(storeSettings.loyalty_points_redeem_ratio.toString()) || 100,
-            loyalty_points_redeem_discount_percent: parseFloat(storeSettings.loyalty_points_redeem_discount_percent.toString()) || 2.00,
-          })
-          .eq('id', storeToUse);
-
-        if (fallbackError) {
-          console.warn("Saving full loyalty settings failed, falling back to legacy settings:", fallbackError.message);
-          
-          // Fallback 2: save legacy loyalty settings (excluding earn_value and dual-tax)
-          const { error: legacyError } = await supabase
-            .from('stores')
-            .update({
-              auto_print_receipt: storeSettings.auto_print_receipt,
-              loyalty_points_earn_ratio: parseInt(storeSettings.loyalty_points_earn_ratio.toString()) || 100,
-              loyalty_points_redeem_ratio: parseInt(storeSettings.loyalty_points_redeem_ratio.toString()) || 100,
-              loyalty_points_redeem_discount_percent: parseFloat(storeSettings.loyalty_points_redeem_discount_percent.toString()) || 2.00,
-            })
-            .eq('id', storeToUse);
-
-          if (legacyError) {
-            console.warn("Saving loyalty settings failed completely, falling back to auto_print_receipt only:", legacyError.message);
-            // Fallback 3: save auto_print_receipt only
-            const { error: finalFallbackError } = await supabase
-              .from('stores')
-              .update({
-                auto_print_receipt: storeSettings.auto_print_receipt,
-              })
-              .eq('id', storeToUse);
-
-            if (finalFallbackError) throw finalFallbackError;
-            toast.warning('Receipt printer settings saved. Loyalty and tax configurations require Supabase SQL schema updates.');
-          } else {
-            toast.warning('Settings saved. Dual-tax options and dynamic multipliers require Supabase SQL schema updates.');
-          }
-        } else {
-          toast.warning('Store and loyalty settings saved. Dual-tax settings require Supabase SQL schema updates.');
-        }
-      } else {
-        toast.success('Store, loyalty, and tax configurations updated successfully');
-      }
-      
-      // Update global state
-      await fetchProfile(profile.id);
+      if (error) throw error;
+      toast.success('Store settings saved successfully');
+      await fetchProfile(profile!.id);
     } catch (error: any) {
       toast.error(error.message || 'Failed to update store settings');
     } finally {

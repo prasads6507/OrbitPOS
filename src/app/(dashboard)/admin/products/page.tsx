@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/useAuthStore';
+import Papa from 'papaparse';
 import { 
   Plus, 
   Search, 
@@ -13,7 +14,8 @@ import {
   Package,
   ArrowUpDown,
   Download,
-  RefreshCw
+  RefreshCw,
+  Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,6 +62,64 @@ export default function ProductsPage() {
   const [adjustingStockProduct, setAdjustingStockProduct] = useState<Product | null>(null);
 
   const storeToUse = activeStoreId || profile?.store_id;
+
+  const handleCSVImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const parsedRows = results.data;
+        if (!parsedRows || parsedRows.length === 0) {
+          toast.error('No products found in the CSV file');
+          return;
+        }
+
+        const validProducts = [];
+        for (const row of parsedRows as any[]) {
+          if (!row.name || !row.price) {
+            continue; // skip rows without required name/price
+          }
+
+          validProducts.push({
+            store_id: storeToUse,
+            name: row.name,
+            sku: row.sku || `SKU-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 1000)}`,
+            price: parseFloat(row.price) || 0,
+            cost_price: row.cost_price ? parseFloat(row.cost_price) : null,
+            stock_quantity: row.stock_quantity ? parseInt(row.stock_quantity) : 0,
+            low_stock_threshold: row.low_stock_threshold ? parseInt(row.low_stock_threshold) : 5,
+            brand_name: row.brand_name || null,
+            vendor_name: row.vendor_name || null,
+            product_type: row.product_type || 'non-gadget',
+            is_active: row.is_active !== undefined ? (row.is_active === 'true' || row.is_active === true) : true,
+            has_variants: false,
+            is_serialized: false,
+          });
+        }
+
+        if (validProducts.length === 0) {
+          toast.error('No valid products found in CSV (ensure "name" and "price" columns exist)');
+          return;
+        }
+
+        try {
+          const { error } = await supabase.from('products').insert(validProducts);
+          if (error) throw error;
+          
+          toast.success(`Successfully imported ${validProducts.length} products!`);
+          fetchProducts();
+        } catch (err: any) {
+          toast.error(err.message || 'Failed to import CSV products');
+        }
+      },
+      error: (error) => {
+        toast.error(`Error parsing CSV: ${error.message}`);
+      }
+    });
+  };
 
   useEffect(() => {
     if (storeToUse) {
@@ -172,6 +232,21 @@ export default function ProductsPage() {
           <p className="text-[#86868b] font-medium mt-1">Manage your digital shelves and inventory details.</p>
         </div>
         <div className="flex items-center gap-3">
+          <input 
+            type="file" 
+            id="csv-import-input" 
+            accept=".csv" 
+            className="hidden" 
+            onChange={handleCSVImport} 
+          />
+          <Button 
+            variant="outline" 
+            className="rounded-2xl h-11 border-gray-100 shadow-sm font-bold text-gray-500 hover:text-black"
+            onClick={() => document.getElementById('csv-import-input')?.click()}
+          >
+            <Upload className="mr-2 h-4 w-4 text-gray-400" />
+            Import CSV
+          </Button>
           <Button 
             variant="outline" 
             className="rounded-2xl h-11 border-gray-100 shadow-sm font-bold"

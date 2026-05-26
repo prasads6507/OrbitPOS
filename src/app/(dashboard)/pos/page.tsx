@@ -26,7 +26,8 @@ import {
   Check,
   Printer,
   ArrowRight,
-  UserMinus
+  UserMinus,
+  Pause
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -98,6 +99,55 @@ export default function POSPage() {
   const redeemPoints = useCartStore(state => state.redeemPoints);
   const setCustomer = useCartStore(state => state.setCustomer);
   const setRedeemPoints = useCartStore(state => state.setRedeemPoints);
+
+  // Parked/Held Orders States (Task 1.4)
+  const [heldOrders, setHeldOrders] = useState<Array<{
+    id: string;
+    label: string;
+    items: typeof items;
+    customer: typeof customer;
+    discount: number;
+    discountType: 'amount' | 'percentage';
+    savedAt: Date;
+  }>>([]);
+  const [showHeldOrders, setShowHeldOrders] = useState(false);
+
+  const holdOrder = () => {
+    if (items.length === 0) return;
+    const label = customer ? customer.full_name : `Order ${heldOrders.length + 1}`;
+    setHeldOrders(prev => [...prev, {
+      id: crypto.randomUUID(),
+      label,
+      items: [...items],
+      customer,
+      discount,
+      discountType,
+      savedAt: new Date(),
+    }]);
+    clearCart();
+    toast.success(`"${label}" held. Cart cleared for new customer.`);
+  };
+
+  const resumeOrder = (heldId: string) => {
+    const held = heldOrders.find(h => h.id === heldId);
+    if (!held) return;
+    if (items.length > 0) {
+      toast.error('Clear the current cart before resuming a held order.');
+      return;
+    }
+    held.items.forEach(item => addItem(item, {
+      variant_id: item.variant_id,
+      variant_name: item.variant_name,
+      price: item.price,
+      serial_number: item.serial_number,
+      stock_quantity: item.stock_quantity,
+    }));
+    setCustomer(held.customer);
+    setDiscount(held.discount, held.discountType);
+    setHeldOrders(prev => prev.filter(h => h.id !== heldId));
+    setShowHeldOrders(false);
+    toast.success(`Resumed order for "${held.label}"`);
+  };
   const loyaltySettings = useCartStore(state => state.loyaltySettings);
   const setLoyaltySettings = useCartStore(state => state.setLoyaltySettings);
 
@@ -111,6 +161,8 @@ export default function POSPage() {
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newDOB, setNewDOB] = useState('');
+  const [newAddress, setNewAddress] = useState('');
   const [submittingCust, setSubmittingCust] = useState(false);
 
   // Customer Order History Modal State
@@ -213,6 +265,8 @@ export default function POSPage() {
           full_name: newName,
           phone: newPhone || null,
           email: newEmail || null,
+          date_of_birth: newDOB || null,
+          address: newAddress || null,
           store_id: storeToUse,
           loyalty_points: 0
         })
@@ -227,6 +281,8 @@ export default function POSPage() {
       setNewName('');
       setNewPhone('');
       setNewEmail('');
+      setNewDOB('');
+      setNewAddress('');
     } catch (err: any) {
       toast.error(err.message || 'Error registering customer');
     } finally {
@@ -778,14 +834,28 @@ export default function POSPage() {
             <h2 className="font-black text-lg text-black tracking-tight">Current Order</h2>
             <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">{items.length} items</p>
           </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={clearCart} 
-            className="text-gray-300 hover:text-rose-500 hover:bg-rose-50 h-9 w-9 rounded-xl transition-all active:scale-90"
-          >
-            <Trash2 className="h-4.5 w-4.5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {heldOrders.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setShowHeldOrders(true)}
+                className="text-amber-500 hover:text-amber-600 hover:bg-amber-50 font-bold text-[11px] rounded-xl h-8 px-2.5">
+                <History className="h-3.5 w-3.5 mr-1" />
+                {heldOrders.length} Held
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={holdOrder} disabled={items.length === 0}
+              className="text-gray-400 hover:text-amber-500 hover:bg-amber-50 font-bold text-[11px] rounded-xl h-8 px-2.5">
+              <Pause className="h-3.5 w-3.5 mr-1" />
+              Hold
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={clearCart} 
+              className="text-gray-300 hover:text-rose-500 hover:bg-rose-50 h-9 w-9 rounded-xl transition-all active:scale-90"
+            >
+              <Trash2 className="h-4.5 w-4.5" />
+            </Button>
+          </div>
         </div>
 
         {/* Customer Identity Bar (Placed at Top) */}
@@ -1244,6 +1314,19 @@ export default function POSPage() {
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                 />
+                <Input
+                  placeholder="Date of Birth (optional)"
+                  type="date"
+                  className="h-11 bg-gray-50 border-transparent rounded-xl focus:bg-white font-bold text-[13px]"
+                  value={newDOB}
+                  onChange={(e) => setNewDOB(e.target.value)}
+                />
+                <Input
+                  placeholder="Address (optional)"
+                  className="h-11 bg-gray-50 border-transparent rounded-xl focus:bg-white font-bold text-[13px]"
+                  value={newAddress}
+                  onChange={(e) => setNewAddress(e.target.value)}
+                />
               </div>
               <Button
                 type="submit"
@@ -1426,6 +1509,34 @@ export default function POSPage() {
           {/* Modal Footer */}
           <div className="p-6 border-t border-gray-50 bg-[#fbfbfd] flex justify-end shrink-0">
             <Button className="rounded-xl font-bold bg-black text-white hover:bg-gray-800 px-6" onClick={() => setHistoryOpen(false)}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Held / Parked Orders List Dialog (Task 1.4) */}
+      <Dialog open={showHeldOrders} onOpenChange={setShowHeldOrders}>
+        <DialogContent className="sm:max-w-[400px] p-0 rounded-[2rem] border-none shadow-2xl bg-white">
+          <div className="p-6 bg-[#fbfbfd] border-b border-gray-50">
+            <DialogTitle className="text-lg font-black text-black">Held Orders</DialogTitle>
+            <p className="text-gray-400 font-bold text-[11px] mt-0.5">Resume a parked transaction</p>
+          </div>
+          <div className="p-6 space-y-3 max-h-[400px] overflow-y-auto">
+            {heldOrders.length === 0 ? (
+              <p className="text-center text-gray-400 text-[13px] py-8">No held orders</p>
+            ) : (
+              heldOrders.map(held => (
+                <button key={held.id} onClick={() => resumeOrder(held.id)}
+                  className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-100 hover:border-[#0071e3] hover:bg-blue-50/10 text-left transition-all">
+                  <div>
+                    <p className="font-black text-black text-[13px]">{held.label}</p>
+                    <p className="text-[10px] text-gray-400 font-bold mt-1">
+                      {held.items.length} items · {held.savedAt.toLocaleTimeString()}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                </button>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>

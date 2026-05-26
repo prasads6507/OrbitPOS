@@ -14,7 +14,8 @@ const RLS_TABLES = new Set([
   'attendance', 'stores', 'categories', 'customers', 'payroll',
   'vendor_invoices', 'stock_transfers', 'shifts', 'settings',
   'product_variants', 'serialized_inventory', 'form_submissions', 'activity_logs',
-  'companies'
+  'companies', 'vendors', 'purchase_orders', 'purchase_order_items', 'cash_drawer_logs',
+  'whatsapp_logs'
 ]);
 
 /**

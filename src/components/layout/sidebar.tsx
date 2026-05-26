@@ -20,7 +20,8 @@ import {
   X,
   Calendar,
   Send,
-  FileText
+  FileText,
+  Truck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,7 @@ const navItems = [
   { name: 'Inventory', href: '/admin/inventory', icon: Package, roles: ['admin', 'cashier', 'employee'] },
   { name: 'Stock Transfer', href: '/admin/inventory/transfer', icon: Send, roles: ['admin'] },
   { name: 'Vendor Invoices', href: '/admin/vendors', icon: FileText, roles: ['admin'] },
+  { name: 'Purchase Orders', href: '/admin/purchase-orders', icon: Truck, roles: ['admin'] },
   { name: 'Employees', href: '/admin/employees', icon: Users, roles: ['admin', 'cashier', 'employee'] },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3, roles: ['admin', 'cashier', 'employee'] },
   { name: 'Time Punch', href: '/attendance', icon: Clock, roles: ['admin', 'cashier', 'employee'] },

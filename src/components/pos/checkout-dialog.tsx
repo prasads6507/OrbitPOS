@@ -100,23 +100,39 @@ export function CheckoutDialog({
   const redeemPoints = useCartStore(state => state.redeemPoints);
   const loyaltySettings = useCartStore(state => state.loyaltySettings);
   const [step, setStep] = useState<CheckoutStep>('selection');
-  const [method, setMethod] = useState<'cash' | 'card'>('cash');
+  const [method, setMethod] = useState<'cash' | 'card' | 'upi'>('cash');
   const [cashTendered, setCashTendered] = useState<string>('');
   const [orderId, setOrderId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
 
+  // Split payment state
+  const [isSplitPayment, setIsSplitPayment] = useState(false);
+  const [splitCash, setSplitCash] = useState<string>('');
+  const [splitCard, setSplitCard] = useState<string>('');
+  const [splitUpi, setSplitUpi] = useState<string>('');
+
+  const splitCashVal = parseFloat(splitCash) || 0;
+  const splitCardVal = parseFloat(splitCard) || 0;
+  const splitUpiVal = parseFloat(splitUpi) || 0;
+  const splitTotal = splitCashVal + splitCardVal + splitUpiVal;
+  const isSplitValid = Math.abs(splitTotal - total) < 0.01;
+
   const storeToUse = activeStoreId || profile?.store_id;
 
   // Reset state when dialog closes
   useEffect(() => {
     if (open) {
-      setMethod(initialMethod);
+      setMethod(initialMethod === 'card' ? 'card' : 'cash');
+      setIsSplitPayment(false);
+      setSplitCash('');
+      setSplitCard('');
+      setSplitUpi('');
       if (initialMethod === 'cash') {
         setStep('cash-input');
       } else {
-        handleMethodContinue(initialMethod);
+        setStep('selection');
       }
     } else {
       setTimeout(() => {
@@ -135,7 +151,74 @@ export function CheckoutDialog({
     setCashTendered(amount.toFixed(2));
   };
 
-  const finalizeOrder = async (stripeId?: string, last4?: string, brand?: string) => {
+  const handleRazorpayPayment = async () => {
+    try {
+      let paymentAmount = total;
+      
+      if (isSplitPayment) {
+        paymentAmount = splitCardVal + splitUpiVal;
+      }
+      
+      if (paymentAmount === 0) {
+        return { success: true, paymentId: null };
+      }
+      
+      const res = await fetch('/api/razorpay/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: paymentAmount, receipt: `pos_${Date.now()}` }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      const { orderId } = data;
+
+      return new Promise<{ success: boolean; paymentId: string | null }>((resolve, reject) => {
+        const options = {
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+          amount: Math.round(paymentAmount * 100),
+          currency: 'INR',
+          name: 'OrbitPOS',
+          description: 'POS Transaction Checkout',
+          order_id: orderId,
+          handler: async (response: any) => {
+            try {
+              const verifyRes = await fetch('/api/razorpay/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(response),
+              });
+              const { verified, paymentId } = await verifyRes.json();
+              
+              if (verified) {
+                resolve({ success: true, paymentId });
+              } else {
+                reject(new Error('Payment verification failed'));
+              }
+            } catch (err) {
+              reject(err);
+            }
+          },
+          prefill: {
+            name: customer?.full_name || '',
+            contact: customer?.phone || '',
+            email: customer?.email || '',
+          },
+          theme: { color: '#0071e3' },
+          modal: {
+            ondismiss: () => {
+              reject(new Error('Payment sheet cancelled by user'));
+            }
+          }
+        };
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
+      });
+    } catch (err: any) {
+      throw new Error(err.message || 'Razorpay creation failed');
+    }
+  };
+
+  const processCheckout = async () => {
     if (!storeToUse) {
       toast.error('Store ID not found. Please log in again.');
       return;
@@ -144,11 +227,26 @@ export function CheckoutDialog({
       toast.error('Cart is empty. Cannot process order.');
       return;
     }
+
     setStep('processing');
+    let rzpResult: { success: boolean; paymentId: string | null } | null = null;
+
     try {
+      // 1. Process via Razorpay if Card/UPI selected
+      if (isSplitPayment) {
+        if (!isSplitValid) {
+          throw new Error(`Split total (₹${splitTotal.toFixed(2)}) must equal Total Due (₹${total.toFixed(2)})`);
+        }
+        if (splitCardVal > 0 || splitUpiVal > 0) {
+          rzpResult = await handleRazorpayPayment();
+        }
+      } else if (method === 'card' || method === 'upi') {
+        rzpResult = await handleRazorpayPayment();
+      }
+
+      // 2. Finalize order in Supabase
       const pointsEarned = customer ? Math.floor(total / loyaltySettings.earn_ratio) * loyaltySettings.earn_value : 0;
       const pointsRedeemed = customer && redeemPoints && customer.loyalty_points >= loyaltySettings.redeem_ratio ? loyaltySettings.redeem_ratio : 0;
-
       const pointsDiscount = (customer && redeemPoints && customer.loyalty_points >= loyaltySettings.redeem_ratio) ? (subtotal + tax - discount) * (loyaltySettings.discount_percent / 100) : 0;
       const finalDiscountAmount = discount + pointsDiscount;
 
@@ -158,14 +256,18 @@ export function CheckoutDialog({
           total_amount: total,
           tax_amount: tax,
           discount_amount: finalDiscountAmount,
-          payment_method: method,
+          payment_method: isSplitPayment ? 'split' : method,
           payment_status: 'completed',
           store_id: storeToUse,
           cashier_id: profile?.id,
-          stripe_payment_intent_id: null,
+          stripe_payment_intent_id: rzpResult?.paymentId || null,
           customer_id: customer ? customer.id : null,
           points_earned: pointsEarned,
-          points_redeemed: pointsRedeemed
+          points_redeemed: pointsRedeemed,
+          split_cash_amount: isSplitPayment ? splitCashVal : (method === 'cash' ? total : 0),
+          split_card_amount: isSplitPayment ? splitCardVal : (method === 'card' ? total : 0),
+          split_upi_amount: isSplitPayment ? splitUpiVal : (method === 'upi' ? total : 0),
+          is_split_payment: isSplitPayment
         })
         .select()
         .single();
@@ -183,7 +285,6 @@ export function CheckoutDialog({
         if (customerUpdateError) {
           console.error("Error updating customer points:", customerUpdateError);
         } else {
-          // Update local store customer points so receipt and profile show correct points instantly
           useCartStore.setState({
             customer: {
               ...customer,
@@ -213,13 +314,11 @@ export function CheckoutDialog({
       // Update inventory
       for (const item of items) {
         if (item.variant_id) {
-          // Decrement variant stock
           await supabase
             .from('product_variants')
             .update({ stock_quantity: Math.max(0, item.stock_quantity - item.quantity) })
             .eq('id', item.variant_id);
 
-          // If serialized, flag scanned serial as sold
           if (item.serial_number) {
             await supabase
               .from('serialized_inventory')
@@ -228,13 +327,11 @@ export function CheckoutDialog({
               .eq('serial_number', item.serial_number);
           }
         } else {
-          // Decrement parent product stock
           await supabase
             .from('products')
             .update({ stock_quantity: Math.max(0, item.stock_quantity - item.quantity) })
             .eq('id', item.id);
 
-          // If serialized (but no variants), flag scanned serial as sold
           if (item.serial_number) {
             await supabase
               .from('serialized_inventory')
@@ -256,7 +353,6 @@ export function CheckoutDialog({
 
       setOrderId(order.id);
       
-      // Capture receipt data before clearing
       setReceiptData({
         items: [...items],
         subtotal,
@@ -270,11 +366,10 @@ export function CheckoutDialog({
         total,
         orderId: order.id,
         date: new Date().toLocaleString(),
-        method,
+        method: isSplitPayment ? 'split' : method,
         discount,
         discountType,
-        cardLast4: last4,
-        cardBrand: brand,
+        cardLast4: rzpResult?.paymentId ? rzpResult.paymentId.slice(-4) : undefined,
         cashTendered: method === 'cash' ? cashTendered : undefined,
         changeDue: method === 'cash' ? changeDue : undefined,
         cashierName: profile?.full_name || 'System',
@@ -288,25 +383,40 @@ export function CheckoutDialog({
         pointsBalance: customer ? (customer.loyalty_points - pointsRedeemed + pointsEarned) : 0
       });
 
+      // Trigger WhatsApp receipt via OpenWA Docker API
+      if (customer && customer.phone) {
+        fetch('/api/whatsapp/send-receipt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: order.id }),
+        }).catch(err => console.error('Background WhatsApp dispatch error:', err));
+      }
+
       setStep('success');
-      clearCart(); // We can safely clear now
+      clearCart();
       toast.success('Transaction Completed');
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Database error occurred');
-      setStep('failed');
-    }
-  };
+      console.error("Checkout process error:", err);
+      
+      // Rollback charged payment via Razorpay refund
+      if (rzpResult?.paymentId) {
+        try {
+          const refundAmount = isSplitPayment ? (splitCardVal + splitUpiVal) : total;
+          toast.info('Database save failed. Launching Razorpay rollback refund...');
+          await fetch('/api/razorpay/refund', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paymentId: rzpResult.paymentId, amount: refundAmount }),
+          });
+          toast.success('Razorpay transaction successfully rolled back.');
+        } catch (refundErr: any) {
+          console.error("Razorpay rollback refund exception:", refundErr);
+          toast.error(`Refund rollback failed: ${refundErr.message}. Manual refund required.`);
+        }
+      }
 
-  const handleMethodContinue = async (selectedMethod?: 'cash' | 'card') => {
-    const currentMethod = selectedMethod || method;
-    setMethod(currentMethod);
-    
-    if (currentMethod === 'cash') {
-      setStep('cash-input');
-    } else {
-      // Assuming external physical credit card terminal
-      finalizeOrder();
+      setError(err.message || 'Database error occurred during check out.');
+      setStep('failed');
     }
   };
 
@@ -314,7 +424,6 @@ export function CheckoutDialog({
     const autoPrint = profile?.stores?.auto_print_receipt !== false;
     if (step === 'success' && receiptData && autoPrint) {
       handlePrint();
-      // Clear data after a delay to prevent re-triggering during re-renders
       const timer = setTimeout(() => {
         setReceiptData(null);
       }, 2000);
@@ -326,14 +435,12 @@ export function CheckoutDialog({
     const printContent = document.getElementById('printable-receipt');
     if (!printContent) return;
 
-    // Create a new window for printing
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (!printWindow) {
       toast.error('Please allow popups to print receipts');
       return;
     }
 
-    // Write the receipt content with specific thermal styles
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -350,7 +457,6 @@ export function CheckoutDialog({
               font-family: monospace;
               background: white;
             }
-            /* Reset the hidden/print:block logic since we are in a dedicated window */
             #printable-receipt {
               display: block !important;
               width: 80mm;
@@ -358,7 +464,6 @@ export function CheckoutDialog({
               margin: 0;
               background: white;
             }
-            /* Professional thermal receipt styling */
             * {
               box-sizing: border-box;
               color: black !important;
@@ -573,62 +678,142 @@ export function CheckoutDialog({
         </div>
 
         {/* Dynamic Content Section */}
-        <div className="p-10 min-h-[400px] flex flex-col">
+        <div className="p-10 min-h-[400px] flex flex-col justify-start">
           
           {step === 'selection' && (
-            <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm text-center">
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Total Amount Due</p>
-                <div className="text-5xl font-black text-[#0071e3] tracking-tighter">₹{total.toFixed(2)}</div>
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
+              <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm text-center">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Amount Due</p>
+                <div className="text-4xl font-black text-[#0071e3] tracking-tighter">₹{total.toFixed(2)}</div>
               </div>
 
-              <div className="space-y-4">
-                <Label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Select Payment Method</Label>
-                <div className="grid grid-cols-2 gap-4">
+              {/* Split Payment Controls (Task 1.5) */}
+              <div className="space-y-3 p-5 bg-[#f5f5f7] rounded-3xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-[12px] font-black text-black uppercase tracking-wider">Split Payment Mode</Label>
+                    <p className="text-[9px] text-gray-400 font-bold mt-0.5">Pay using a combination of Cash/Card/UPI</p>
+                  </div>
                   <Button
-                    variant="outline"
-                    className={cn(
-                      "h-32 flex-col gap-3 rounded-3xl border-2 transition-all",
-                      method === 'cash' ? "border-[#0071e3] bg-blue-50/30 text-[#0071e3]" : "border-gray-100 hover:border-gray-200"
-                    )}
-                    onClick={() => setMethod('cash')}
+                    type="button"
+                    variant={isSplitPayment ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setIsSplitPayment(!isSplitPayment);
+                      setSplitCash('');
+                      setSplitCard('');
+                      setSplitUpi('');
+                    }}
+                    className={cn("rounded-xl h-8 px-3.5 text-[10px] font-black tracking-wider uppercase transition-all", isSplitPayment ? "bg-[#0071e3] hover:bg-[#0077ed] text-white" : "border-gray-200 text-gray-400")}
                   >
-                    <div className={cn("p-4 rounded-2xl", method === 'cash' ? "bg-[#0071e3] text-white" : "bg-gray-100 text-gray-400")}>
-                      <Banknote className="h-7 w-7" />
-                    </div>
-                    <span className="font-bold text-[15px]">Cash Payment</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "h-32 flex-col gap-3 rounded-3xl border-2 transition-all",
-                      method === 'card' ? "border-[#0071e3] bg-blue-50/30 text-[#0071e3]" : "border-gray-100 hover:border-gray-200"
-                    )}
-                    onClick={() => setMethod('card')}
-                  >
-                    <div className={cn("p-4 rounded-2xl", method === 'card' ? "bg-[#0071e3] text-white" : "bg-gray-100 text-gray-400")}>
-                      <CreditCard className="h-7 w-7" />
-                    </div>
-                    <div className="text-center">
-                      <span className="font-bold text-[15px] block">Contactless Card</span>
-                      <span className="text-[10px] font-medium opacity-60">Tap, Insert or Swipe</span>
-                    </div>
+                    {isSplitPayment ? "Disable" : "Enable"}
                   </Button>
                 </div>
+                
+                {isSplitPayment && (
+                  <div className="space-y-3.5 pt-3.5 border-t border-gray-200/55 animate-in fade-in duration-300">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider ml-1">Cash (₹)</p>
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          value={splitCash}
+                          onChange={(e) => setSplitCash(e.target.value)}
+                          className="h-10 bg-white rounded-xl text-center font-bold text-[13px]"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider ml-1">Card (₹)</p>
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          value={splitCard}
+                          onChange={(e) => setSplitCard(e.target.value)}
+                          className="h-10 bg-white rounded-xl text-center font-bold text-[13px]"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider ml-1">UPI (₹)</p>
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          value={splitUpi}
+                          onChange={(e) => setSplitUpi(e.target.value)}
+                          className="h-10 bg-white rounded-xl text-center font-bold text-[13px]"
+                        />
+                      </div>
+                    </div>
+                    <div className={cn("p-2.5 rounded-xl text-center font-mono text-[11px] font-bold transition-all", isSplitValid ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-500")}>
+                      Split Total: ₹{splitTotal.toFixed(2)} / ₹{total.toFixed(2)}
+                      {!isSplitValid && <p className="text-[8px] font-sans font-bold uppercase tracking-wider mt-0.5">Amounts must equal exactly ₹{total.toFixed(2)}</p>}
+                    </div>
+                  </div>
+                )}
               </div>
 
+              {!isSplitPayment && (
+                <div className="space-y-4 w-full">
+                  <Label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1">Select Payment Method</Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "h-24 flex-col gap-2 rounded-2xl border-2 transition-all p-3",
+                        method === 'cash' ? "border-[#0071e3] bg-blue-50/30 text-[#0071e3]" : "border-gray-100 hover:border-gray-200"
+                      )}
+                      onClick={() => setMethod('cash')}
+                    >
+                      <Banknote className="h-6 w-6" />
+                      <span className="font-bold text-[13px]">Cash</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "h-24 flex-col gap-2 rounded-2xl border-2 transition-all p-3",
+                        method === 'card' ? "border-[#0071e3] bg-blue-50/30 text-[#0071e3]" : "border-gray-100 hover:border-gray-200"
+                      )}
+                      onClick={() => setMethod('card')}
+                    >
+                      <CreditCard className="h-6 w-6" />
+                      <span className="font-bold text-[13px]">Card (Online)</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "h-24 flex-col gap-2 rounded-2xl border-2 transition-all p-3",
+                        method === 'upi' ? "border-[#0071e3] bg-blue-50/30 text-[#0071e3]" : "border-gray-100 hover:border-gray-200"
+                      )}
+                      onClick={() => setMethod('upi')}
+                    >
+                      <Smartphone className="h-6 w-6" />
+                      <span className="font-bold text-[13px]">UPI / QR</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               <Button 
-                disabled={loading}
-                className="w-full h-16 rounded-2xl bg-black hover:bg-gray-800 text-white font-black text-lg shadow-xl shadow-black/10 mt-auto"
-                onClick={() => handleMethodContinue()}
+                disabled={isSplitPayment ? !isSplitValid : false}
+                className="w-full h-16 rounded-2xl bg-black hover:bg-gray-800 text-white font-black text-[16px] shadow-xl shadow-black/10 mt-auto"
+                onClick={() => {
+                  if (isSplitPayment) {
+                    processCheckout();
+                  } else if (method === 'cash') {
+                    setStep('cash-input');
+                  } else {
+                    processCheckout();
+                  }
+                }}
               >
-                {loading ? <Loader2 className="animate-spin" /> : <>Continue to {method === 'cash' ? 'Cash' : 'Card'}<ArrowRight className="ml-2 h-5 w-5" /></>}
+                {isSplitPayment ? "Complete Split Transaction" : `Continue to ${method.toUpperCase()} Payment`}
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </div>
           )}
 
           {step === 'cash-input' && (
-            <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
+            <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500 w-full">
               <div className="bg-[#f5f5f7] p-6 rounded-2xl flex justify-between items-center">
                 <span className="font-bold text-gray-500">Amount Due</span>
                 <span className="text-2xl font-black text-black">₹{total.toFixed(2)}</span>
@@ -677,7 +862,7 @@ export function CheckoutDialog({
                 <Button 
                   className="h-14 rounded-2xl bg-black hover:bg-gray-800 text-white font-bold text-lg flex-[2] shadow-xl"
                   disabled={parseFloat(cashTendered) < total || !cashTendered}
-                  onClick={() => finalizeOrder()}
+                  onClick={() => processCheckout()}
                 >
                   Complete Order
                 </Button>
@@ -686,20 +871,20 @@ export function CheckoutDialog({
           )}
 
           {step === 'processing' && (
-            <div className="flex-1 flex flex-col items-center justify-center py-20 space-y-8 animate-in fade-in duration-300">
+            <div className="flex-1 flex flex-col items-center justify-center py-20 space-y-8 animate-in fade-in duration-300 w-full">
               <div className="relative">
                 <div className="w-24 h-24 border-4 border-gray-100 border-t-[#0071e3] rounded-full animate-spin" />
                 <Wifi className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-8 w-8 text-[#0071e3] animate-pulse" />
               </div>
               <div className="text-center">
                 <h3 className="text-xl font-black text-black">Processing Transaction</h3>
-                <p className="text-gray-400 font-medium">Securing payment with bank...</p>
+                <p className="text-gray-400 font-medium">Securing payment with Razorpay...</p>
               </div>
             </div>
           )}
 
           {step === 'success' && (
-            <div className="flex-1 flex flex-col items-center justify-center py-10 animate-in zoom-in-95 duration-500">
+            <div className="flex-1 flex flex-col items-center justify-center py-10 animate-in zoom-in-95 duration-500 w-full">
               <div className="w-24 h-24 bg-emerald-50 rounded-[2rem] flex items-center justify-center mb-8 relative">
                 <div className="absolute inset-0 bg-emerald-500/10 rounded-[2rem] animate-ping" />
                 <CheckCircle2 className="h-12 w-12 text-emerald-500 relative" />
@@ -731,7 +916,7 @@ export function CheckoutDialog({
           )}
 
           {step === 'failed' && (
-            <div className="flex-1 flex flex-col items-center justify-center py-10 animate-in zoom-in-95 duration-500">
+            <div className="flex-1 flex flex-col items-center justify-center py-10 animate-in zoom-in-95 duration-500 w-full">
               <div className="w-24 h-24 bg-rose-50 rounded-[2rem] flex items-center justify-center mb-8">
                 <AlertCircle className="h-12 w-12 text-rose-500" />
               </div>

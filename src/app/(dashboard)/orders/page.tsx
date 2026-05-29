@@ -790,7 +790,7 @@ export default function OrdersPage() {
           setExchangeNewItems([]);
         }
       }}>
-        <DialogContent className={cn("p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl transition-all duration-300", refundMode === 'swap' ? 'max-w-4xl' : 'max-w-md')}>
+        <DialogContent className={cn("p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl transition-all duration-300", refundMode === 'swap' ? 'sm:max-w-4xl w-full' : 'sm:max-w-md w-full')}>
           <div className="p-8 bg-[#fbfbfd] border-b border-gray-50 text-center">
             <div className="w-16 h-16 bg-black text-white rounded-2xl flex items-center justify-center mx-auto mb-4"><ShoppingBag className="h-8 w-8" /></div>
             <DialogTitle className="text-2xl font-black text-black">
@@ -1055,7 +1055,42 @@ export default function OrdersPage() {
               </div>
             ) : refundMode === 'refund' ? (
               <>
-                <div className="space-y-2 pt-4">
+                <div className="space-y-4 max-h-48 overflow-y-auto pr-1">
+                  <Label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Select Items to Refund</Label>
+                  {selectedOrder?.order_items?.map((item: any, idx: number) => {
+                    const ri = refundItems.find(r => r.id === item.id);
+                    const isFullyRefunded = item.quantity === (item.refunded_quantity || 0);
+                    return (
+                      <div key={idx} className="flex justify-between items-center bg-gray-50/50 p-3 rounded-2xl border border-gray-50">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <p className={cn("font-bold text-[13px] truncate", isFullyRefunded ? "text-gray-400 line-through" : "text-black")}>
+                            {item.products?.name}
+                          </p>
+                          <p className="text-[10px] text-gray-400 font-bold mt-0.5">
+                            Max return: {item.quantity - (item.refunded_quantity || 0)} • ₹{item.unit_price?.toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button 
+                            type="button"
+                            variant="outline" size="icon" className="h-7 w-7 rounded-lg bg-white"
+                            disabled={!ri || ri.quantity <= 0}
+                            onClick={() => setRefundItems(prev => prev.map(p => p.id === item.id ? {...p, quantity: p.quantity - 1} : p))}
+                          >-</Button>
+                          <span className="font-bold text-[12px] w-4 text-center">{ri?.quantity || 0}</span>
+                          <Button 
+                            type="button"
+                            variant="outline" size="icon" className="h-7 w-7 rounded-lg bg-white"
+                            disabled={!ri || ri.quantity >= ri.max}
+                            onClick={() => setRefundItems(prev => prev.map(p => p.id === item.id ? {...p, quantity: p.quantity + 1} : p))}
+                          >+</Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="space-y-2 pt-2">
                   <Label className="text-[10px] font-black uppercase text-gray-400">Refund Reason (Optional)</Label>
                   <Input 
                     placeholder="e.g. Defective item, changed mind..."

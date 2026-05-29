@@ -268,8 +268,110 @@ export default function OrdersPage() {
 
   const handleReprint = (order: any) => {
     const isRefunded = order.payment_status === 'refunded' || order.payment_status === 'partially_refunded';
+    const isExchanged = order.payment_status === 'exchanged';
 
-    if (isRefunded) {
+    if (isExchanged) {
+      const orderTime = parseISO(order.created_at).getTime();
+      const isNewSwapItem = (item: any) => {
+        const itemTime = parseISO(item.created_at).getTime();
+        return itemTime - orderTime > 5000;
+      };
+
+      const receiptItems: any[] = [];
+      let originalKeptSubtotal = 0;
+      let returnsSubtotal = 0;
+      let newSwapSubtotal = 0;
+
+      order.order_items.forEach((item: any) => {
+        const isSwap = isNewSwapItem(item);
+        if (isSwap) {
+          const keptQty = item.quantity - (item.refunded_quantity || 0);
+          if (keptQty > 0) {
+            receiptItems.push({
+              name: item.products?.name,
+              quantity: keptQty,
+              price: item.unit_price,
+              unit_price: item.unit_price,
+              variant_name: item.product_variants?.model_name || null,
+              serial_number: item.serial_number || null,
+              is_return: false,
+              is_swap: true
+            });
+            newSwapSubtotal += item.unit_price * keptQty;
+          }
+          if (item.refunded_quantity > 0) {
+            receiptItems.push({
+              name: item.products?.name,
+              quantity: item.refunded_quantity,
+              price: item.unit_price,
+              unit_price: item.unit_price,
+              variant_name: item.product_variants?.model_name || null,
+              serial_number: item.serial_number || null,
+              is_return: true,
+              is_swap: false
+            });
+            returnsSubtotal += item.unit_price * item.refunded_quantity;
+          }
+        } else {
+          const keptQty = item.quantity - (item.refunded_quantity || 0);
+          if (keptQty > 0) {
+            receiptItems.push({
+              name: item.products?.name,
+              quantity: keptQty,
+              price: item.unit_price,
+              unit_price: item.unit_price,
+              variant_name: item.product_variants?.model_name || null,
+              serial_number: item.serial_number || null,
+              is_return: false,
+              is_swap: false
+            });
+            originalKeptSubtotal += item.unit_price * keptQty;
+          }
+          if (item.refunded_quantity > 0) {
+            receiptItems.push({
+              name: item.products?.name,
+              quantity: item.refunded_quantity,
+              price: item.unit_price,
+              unit_price: item.unit_price,
+              variant_name: item.product_variants?.model_name || null,
+              serial_number: item.serial_number || null,
+              is_return: true,
+              is_swap: false
+            });
+            returnsSubtotal += item.unit_price * item.refunded_quantity;
+          }
+        }
+      });
+
+      const preTaxTotal = order.total_amount - (order.tax_amount || 0);
+      const taxRate = preTaxTotal > 0 ? (order.tax_amount || 0) / preTaxTotal : 0.08;
+
+      const finalSubtotal = originalKeptSubtotal + newSwapSubtotal;
+      const finalTax = finalSubtotal * taxRate;
+      const finalTotal = order.total_amount; // Use total amount directly from DB
+
+      const netDifference = (newSwapSubtotal + (newSwapSubtotal * taxRate)) - (returnsSubtotal + (returnsSubtotal * taxRate));
+
+      setReceiptData({
+        orderId: order.id,
+        date: format(parseISO(order.created_at), 'MMM d, yyyy h:mm a'),
+        method: order.payment_method,
+        items: receiptItems,
+        subtotal: finalSubtotal,
+        tax: finalTax,
+        total: finalTotal,
+        netDifference: netDifference,
+        discount: order.discount_amount || 0,
+        cashierName: order.cashier?.full_name || 'System',
+        type: 'swap',
+        customerName: order.customer ? order.customer.full_name : undefined,
+        customerPhone: order.customer ? order.customer.phone : undefined,
+        customerEmail: order.customer ? order.customer.email : undefined,
+        pointsEarned: order.points_earned || 0,
+        pointsRedeemed: order.points_redeemed || 0,
+        pointsBalance: order.customer ? order.customer.loyalty_points : 0
+      });
+    } else if (isRefunded) {
       const refundedItems = order.order_items.filter((item: any) => (item.refunded_quantity || 0) > 0);
       const subtotal = refundedItems.reduce((sum: number, item: any) => sum + (item.unit_price * item.refunded_quantity), 0);
       
@@ -555,6 +657,26 @@ export default function OrdersPage() {
       setRefundMode('none');
 
       const receiptItems: any[] = [];
+      
+      // 1. Original kept items
+      for (const item of selectedOrder.order_items) {
+        const returnedNow = itemsToRefund.find(r => r.id === item.id)?.quantity || 0;
+        const keptQty = item.quantity - (item.refunded_quantity || 0) - returnedNow;
+        if (keptQty > 0) {
+          receiptItems.push({
+            name: item.products?.name,
+            quantity: keptQty,
+            price: item.unit_price,
+            unit_price: item.unit_price,
+            variant_name: item.product_variants?.model_name || null,
+            serial_number: item.serial_number || null,
+            is_return: false,
+            is_swap: false
+          });
+        }
+      }
+
+      // 2. Returned items
       for (const req of itemsToRefund) {
         const oi = selectedOrder.order_items.find((i: any) => i.id === req.id);
         if (oi) {
@@ -565,11 +687,13 @@ export default function OrdersPage() {
             unit_price: oi.unit_price,
             variant_name: oi.product_variants?.model_name || null,
             serial_number: oi.serial_number || null,
-            is_return: true
+            is_return: true,
+            is_swap: false
           });
         }
       }
 
+      // 3. New swap items
       for (const newItem of exchangeNewItems) {
         receiptItems.push({
           name: newItem.name,
@@ -578,20 +702,31 @@ export default function OrdersPage() {
           unit_price: newItem.price,
           variant_name: newItem.variant_name || null,
           serial_number: newItem.serial_number || null,
-          is_return: false
+          is_return: false,
+          is_swap: true
         });
       }
 
       const pointsDiff = Math.floor(netDiff / 100);
+      const finalSubtotal = selectedOrder.order_items.reduce((sum: number, item: any) => {
+        const returnedNow = itemsToRefund.find(r => r.id === item.id)?.quantity || 0;
+        const keptQty = item.quantity - (item.refunded_quantity || 0) - returnedNow;
+        return sum + (item.unit_price * keptQty);
+      }, 0) + newSubtotal;
+
+      const finalTax = finalSubtotal * taxRate;
+      const finalTotal = finalSubtotal + finalTax;
 
       setReceiptData({
         orderId: selectedOrder.id,
         date: format(new Date(), 'MMM d, yyyy h:mm a'),
         method: exchangePaymentMethod,
         items: receiptItems,
-        subtotal: newSubtotal - returnsSubtotal,
-        tax: newTax - returnsTax,
-        total: netDiff,
+        subtotal: finalSubtotal,
+        tax: finalTax,
+        total: finalTotal,
+        netDifference: netDiff,
+        cashTendered: exchangePaymentMethod === 'cash' ? exchangeCashTendered : undefined,
         cashierName: profile?.full_name || 'System',
         type: 'swap',
         refundReason: refundReason || 'Customer Exchange',
@@ -745,7 +880,12 @@ export default function OrdersPage() {
                           <TableCell className="text-right">
                              <div className="flex flex-col items-end">
                                 <span className="font-black text-black text-lg">₹{order.total_amount.toFixed(2)}</span>
-                                <Badge className={cn("border-none font-black text-[9px] h-4", order.payment_status === 'completed' ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600")}>
+                                <Badge className={cn(
+                                  "border-none font-black text-[9px] h-4", 
+                                  order.payment_status === 'completed' ? "bg-emerald-50 text-emerald-600" : 
+                                  order.payment_status === 'exchanged' ? "bg-blue-50 text-[#0071e3]" : 
+                                  "bg-rose-50 text-rose-600"
+                                )}>
                                    {order.payment_status.toUpperCase()}
                                 </Badge>
                              </div>

@@ -413,7 +413,7 @@ export async function exchangeOrder(
         refunded_amount: newRefundedAmount,
         refund_reason: reason,
         points_earned: Math.max(0, (order.points_earned || 0) + pointsAdjustment),
-        payment_status: 'completed',
+        payment_status: 'exchanged',
         refunded_at: new Date().toISOString()
       })
       .eq('id', orderId);

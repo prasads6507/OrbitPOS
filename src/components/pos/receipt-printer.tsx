@@ -33,6 +33,7 @@ interface ReceiptPrinterProps {
     pointsBalance?: number;
     pointsDiscountPercent?: number;
     pointsDiscountValue?: number;
+    netDifference?: number;
   } | null;
 }
 
@@ -107,7 +108,7 @@ export function ReceiptPrinter({ receiptData }: ReceiptPrinterProps) {
               <div key={i} className="space-y-0.5 border-b border-gray-50 pb-1">
                 <div className="flex justify-between">
                   <span className="w-1/2 truncate">
-                    {receiptData.type === 'swap' ? (isReturn ? '[RETURN] ' : '[SWAP] ') : ''}
+                    {receiptData.type === 'swap' ? (item.is_return ? '[RETURN] ' : item.is_swap ? '[SWAP] ' : '') : ''}
                     {item.name || item.products?.name}
                   </span>
                   <span className="w-1/4 text-center">x{item.quantity}</span>
@@ -166,7 +167,7 @@ export function ReceiptPrinter({ receiptData }: ReceiptPrinterProps) {
               <span>-₹{receiptData.discount.toFixed(2)}</span>
             </p>
           )}
-          {receiptData.pointsRedeemed && receiptData.pointsRedeemed > 0 && (
+          {(receiptData.pointsRedeemed || 0) > 0 && (
             <p className="flex justify-between text-rose-600">
               <span>POINTS DISCOUNT ({receiptData.pointsDiscountPercent || 2}%):</span> 
               <span>-₹{(receiptData.pointsDiscountValue || ((receiptData.subtotal + receiptData.tax - receiptData.discount) * 0.02)).toFixed(2)}</span>
@@ -184,6 +185,28 @@ export function ReceiptPrinter({ receiptData }: ReceiptPrinterProps) {
             </span>
           </p>
         </div>
+
+        {receiptData.type === 'swap' && receiptData.netDifference !== undefined && (
+          <div className="border-t border-b border-dashed py-2 space-y-1 text-[10px] opacity-90 my-2">
+            <p className="font-bold text-center uppercase tracking-wider text-[11px] mb-1">Swap Transaction Details</p>
+            <p className="flex justify-between">
+              <span>SWAP DIFFERENCE:</span> 
+              <span className="font-bold font-mono text-[#0071e3]">
+                {receiptData.netDifference >= 0 ? '+' : '-'}₹{Math.abs(receiptData.netDifference).toFixed(2)}
+              </span>
+            </p>
+            <p className="flex justify-between">
+              <span>{receiptData.netDifference >= 0 ? 'PAYMENT METHOD:' : 'REFUND METHOD:'}</span> 
+              <span className="font-bold uppercase">{receiptData.method}</span>
+            </p>
+            {receiptData.netDifference > 0 && receiptData.method === 'cash' && receiptData.cashTendered && (
+              <>
+                <p className="flex justify-between"><span>CASH TENDERED:</span> <span>₹{parseFloat(receiptData.cashTendered).toFixed(2)}</span></p>
+                <p className="flex justify-between text-emerald-600 font-bold"><span>CHANGE DUE:</span> <span>₹{Math.max(0, parseFloat(receiptData.cashTendered) - receiptData.netDifference).toFixed(2)}</span></p>
+              </>
+            )}
+          </div>
+        )}
 
         {receiptData.method === 'cash' && receiptData.type === 'sale' && (
           <div className="space-y-1 border-t pt-2 opacity-80">

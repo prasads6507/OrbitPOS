@@ -102,18 +102,17 @@ export function ReceiptPrinter({ receiptData }: ReceiptPrinterProps) {
             <span className="w-1/4 text-center">QTY</span>
             <span className="w-1/4 text-right">TOTAL</span>
           </div>
-          {receiptData.items.map((item, i) => {
-            const isReturn = item.is_return || receiptData.type === 'refund';
-            return (
+          {(() => {
+            const renderItem = (item: any, i: number, isNegative = false) => (
               <div key={i} className="space-y-0.5 border-b border-gray-50 pb-1">
                 <div className="flex justify-between">
                   <span className="w-1/2 truncate">
-                    {receiptData.type === 'swap' ? (item.is_return ? '[RETURN] ' : item.is_swap ? '[SWAP] ' : '') : ''}
+                    {receiptData.type === 'swap' ? '' : (item.is_return ? '[RETURN] ' : item.is_swap ? '[SWAP] ' : '')}
                     {item.name || item.products?.name}
                   </span>
                   <span className="w-1/4 text-center">x{item.quantity}</span>
                   <span className="w-1/4 text-right">
-                    {isReturn ? '-' : ''}₹{((item.quantity * (item.price || item.unit_price)) || 0).toFixed(2)}
+                    {isNegative ? '-' : ''}₹{((item.quantity * (item.price || item.unit_price)) || 0).toFixed(2)}
                   </span>
                 </div>
                 {(item.variant_name || item.serial_number) && (
@@ -124,7 +123,41 @@ export function ReceiptPrinter({ receiptData }: ReceiptPrinterProps) {
                 )}
               </div>
             );
-          })}
+
+            if (receiptData.type === 'swap') {
+              const returned = receiptData.items.filter(i => i.is_return);
+              const swapped = receiptData.items.filter(i => i.is_swap);
+              const kept = receiptData.items.filter(i => !i.is_return && !i.is_swap);
+              
+              return (
+                <>
+                  {returned.length > 0 && (
+                    <>
+                      <div className="font-bold text-center border-b border-dashed mb-1 mt-2">--- RETURNED ITEMS ---</div>
+                      {returned.map((item, i) => renderItem(item, i, true))}
+                    </>
+                  )}
+                  {swapped.length > 0 && (
+                    <>
+                      <div className="font-bold text-center border-b border-dashed mb-1 mt-2">--- EXCHANGED FOR ---</div>
+                      {swapped.map((item, i) => renderItem(item, i, false))}
+                    </>
+                  )}
+                  {kept.length > 0 && (
+                    <>
+                      <div className="font-bold text-center border-b border-dashed mb-1 mt-2">--- ORIGINAL KEPT ITEMS ---</div>
+                      {kept.map((item, i) => renderItem(item, i, false))}
+                    </>
+                  )}
+                </>
+              );
+            }
+
+            return receiptData.items.map((item, i) => {
+              const isReturn = item.is_return || receiptData.type === 'refund';
+              return renderItem(item, i, isReturn);
+            });
+          })()}
         </div>
 
         <div className="space-y-1 pt-2">

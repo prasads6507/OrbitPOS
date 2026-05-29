@@ -138,6 +138,7 @@ export default function OrdersPage() {
             unit_price,
             variant_id,
             serial_number,
+            created_at,
             products ( name, price, sku ),
             product_variants ( model_name, sku, barcode )
           )

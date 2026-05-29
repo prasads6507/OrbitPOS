@@ -13,7 +13,8 @@ import {
   Clock,
   Printer,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +41,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ReceiptPrinter } from '@/components/pos/receipt-printer';
-import { refundOrder } from '@/app/actions/orders';
+import { refundOrder, exchangeOrder } from '@/app/actions/orders';
 
 import { useActiveStore } from '@/store/useActiveStore';
 
@@ -64,6 +65,21 @@ export default function OrdersPage() {
   const [refundReason, setRefundReason] = useState('');
   const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
 
+  // Swap / Exchange State Variables
+  const [refundMode, setRefundMode] = useState<'none' | 'choose' | 'refund' | 'swap'>('none');
+  const [exchangeNewItems, setExchangeNewItems] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [searchNewItem, setSearchNewItem] = useState('');
+  const [selectedSwapProduct, setSelectedSwapProduct] = useState<any | null>(null);
+  const [selectedSwapVariant, setSelectedSwapVariant] = useState<any | null>(null);
+  const [swapVariants, setSwapVariants] = useState<any[]>([]);
+  const [swapSerials, setSwapSerials] = useState<any[]>([]);
+  const [selectedSwapSerial, setSelectedSwapSerial] = useState<string>('');
+  const [manualSwapSerialInput, setManualSwapSerialInput] = useState<string>('');
+  const [swapCustomizerOpen, setSwapCustomizerOpen] = useState(false);
+  const [exchangePaymentMethod, setExchangePaymentMethod] = useState<'cash' | 'card' | 'upi'>('cash');
+  const [exchangeCashTendered, setExchangeCashTendered] = useState<string>('');
+
   const itemsPerPage = 15;
 
   const storeToUse = activeStoreId || profile?.store_id;
@@ -71,8 +87,24 @@ export default function OrdersPage() {
   useEffect(() => {
     if (storeToUse) {
       fetchOrders();
+      fetchProducts();
     }
   }, [profile, activeStoreId, storeToUse, startDate, endDate]);
+
+  const fetchProducts = async () => {
+    if (!storeToUse) return;
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('store_id', storeToUse)
+        .eq('is_active', true);
+      if (error) throw error;
+      setAllProducts(data || []);
+    } catch (err) {
+      console.error('Error fetching products for swap:', err);
+    }
+  };
 
   const fetchOrders = async () => {
     if (!storeToUse) return;
@@ -367,6 +399,236 @@ export default function OrdersPage() {
     }
   };
 
+  // Swap / Exchange client actions
+  const handleSwapItemSelection = async (product: any) => {
+    if (!product.has_variants && !product.is_serialized) {
+      setExchangeNewItems(prev => {
+        const existing = prev.find(item => item.id === product.id && !item.variant_id);
+        if (existing) {
+          if (existing.quantity >= product.stock_quantity) {
+            toast.error(`Only ${product.stock_quantity} items available in stock`);
+            return prev;
+          }
+          return prev.map(item => item.id === product.id && !item.variant_id ? {...item, quantity: item.quantity + 1} : item);
+        } else {
+          return [...prev, {
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            quantity: 1,
+            stock_quantity: product.stock_quantity
+          }];
+        }
+      });
+      setSearchNewItem('');
+      return;
+    }
+
+    setSelectedSwapProduct(product);
+    setSwapCustomizerOpen(true);
+    setSelectedSwapSerial('');
+    setManualSwapSerialInput('');
+
+    if (product.has_variants) {
+      const { data: vars } = await supabase
+        .from('product_variants')
+        .select('*')
+        .eq('product_id', product.id);
+      
+      setSwapVariants(vars || []);
+      if (vars && vars.length > 0) {
+        setSelectedSwapVariant(vars[0]);
+        if (product.is_serialized) {
+          const { data: serials } = await supabase
+            .from('serialized_inventory')
+            .select('*')
+            .eq('variant_id', vars[0].id)
+            .eq('status', 'in_stock');
+          setSwapSerials(serials || []);
+        }
+      }
+    } else {
+      setSwapVariants([]);
+      setSelectedSwapVariant(null);
+      const { data: serials } = await supabase
+        .from('serialized_inventory')
+        .select('*')
+        .eq('product_id', product.id)
+        .eq('status', 'in_stock');
+      setSwapSerials(serials || []);
+    }
+  };
+
+  const handleAddCustomizedSwapItem = () => {
+    if (!selectedSwapProduct) return;
+    const requiresSerial = selectedSwapProduct.is_serialized;
+    const finalSerial = selectedSwapSerial || manualSwapSerialInput.trim();
+
+    if (requiresSerial && !finalSerial) {
+      toast.error('Serial number is required');
+      return;
+    }
+
+    const price = selectedSwapVariant ? parseFloat(selectedSwapVariant.price) : selectedSwapProduct.price;
+    const variantId = selectedSwapVariant?.id;
+    const variantName = selectedSwapVariant?.model_name;
+    const stockLimit = selectedSwapVariant ? selectedSwapVariant.stock_quantity : selectedSwapProduct.stock_quantity;
+
+    setExchangeNewItems(prev => {
+      const existing = prev.find(item => item.id === selectedSwapProduct.id && item.variant_id === variantId && item.serial_number === finalSerial);
+      if (existing) {
+        if (existing.quantity >= stockLimit) {
+          toast.error(`Only ${stockLimit} items available in stock`);
+          return prev;
+        }
+        return prev.map(item => item.id === selectedSwapProduct.id && item.variant_id === variantId && item.serial_number === finalSerial ? {...item, quantity: item.quantity + 1} : item);
+      } else {
+        return [...prev, {
+          id: selectedSwapProduct.id,
+          name: selectedSwapProduct.name,
+          price: price,
+          quantity: 1,
+          variant_id: variantId,
+          variant_name: variantName,
+          serial_number: finalSerial || undefined,
+          stock_quantity: stockLimit
+        }];
+      }
+    });
+
+    setSwapCustomizerOpen(false);
+    setSelectedSwapProduct(null);
+    setSelectedSwapVariant(null);
+    setSelectedSwapSerial('');
+    setManualSwapSerialInput('');
+    setSearchNewItem('');
+  };
+
+  const handleSubmitExchange = async () => {
+    const itemsToRefund = refundItems.filter(i => i.quantity > 0).map(({id, quantity}) => ({id, quantity}));
+    if (itemsToRefund.length === 0) {
+      toast.error('Please select returned items to swap');
+      return;
+    }
+    if (exchangeNewItems.length === 0) {
+      toast.error('Please select at least one exchange product to purchase');
+      return;
+    }
+
+    const newItemsParam = exchangeNewItems.map(item => ({
+      product_id: item.id,
+      quantity: item.quantity,
+      variant_id: item.variant_id || undefined,
+      serial_number: item.serial_number || undefined,
+      unit_price: item.price
+    }));
+
+    const returnsSubtotal = refundItems.reduce((acc, curr) => {
+      const oi = selectedOrder?.order_items.find((i: any) => i.id === curr.id);
+      return acc + (oi ? oi.unit_price * curr.quantity : 0);
+    }, 0);
+    const preTaxTotal = selectedOrder.total_amount - (selectedOrder.tax_amount || 0);
+    const taxRate = preTaxTotal > 0 ? (selectedOrder.tax_amount || 0) / preTaxTotal : 0.08;
+    const returnsTax = returnsSubtotal * taxRate;
+    const returnsTotal = returnsSubtotal + returnsTax;
+
+    const newSubtotal = exchangeNewItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    const newTax = newSubtotal * taxRate;
+    const newTotal = newSubtotal + newTax;
+
+    const netDiff = newTotal - returnsTotal;
+
+    setIsSubmittingRefund(true);
+    const res = await exchangeOrder(
+      selectedOrder.id,
+      itemsToRefund,
+      newItemsParam,
+      exchangePaymentMethod,
+      netDiff,
+      refundReason || 'Customer Exchange'
+    );
+    setIsSubmittingRefund(false);
+
+    if (res.success) {
+      toast.success('Exchange / Swap successful');
+      setIsRefunding(false);
+      setRefundMode('none');
+
+      const receiptItems: any[] = [];
+      for (const req of itemsToRefund) {
+        const oi = selectedOrder.order_items.find((i: any) => i.id === req.id);
+        if (oi) {
+          receiptItems.push({
+            name: oi.products?.name,
+            quantity: req.quantity,
+            price: oi.unit_price,
+            unit_price: oi.unit_price,
+            variant_name: oi.product_variants?.model_name || null,
+            serial_number: oi.serial_number || null,
+            is_return: true
+          });
+        }
+      }
+
+      for (const newItem of exchangeNewItems) {
+        receiptItems.push({
+          name: newItem.name,
+          quantity: newItem.quantity,
+          price: newItem.price,
+          unit_price: newItem.price,
+          variant_name: newItem.variant_name || null,
+          serial_number: newItem.serial_number || null,
+          is_return: false
+        });
+      }
+
+      const pointsDiff = Math.floor(netDiff / 100);
+
+      setReceiptData({
+        orderId: selectedOrder.id,
+        date: format(new Date(), 'MMM d, yyyy h:mm a'),
+        method: exchangePaymentMethod,
+        items: receiptItems,
+        subtotal: newSubtotal - returnsSubtotal,
+        tax: newTax - returnsTax,
+        total: netDiff,
+        cashierName: profile?.full_name || 'System',
+        type: 'swap',
+        refundReason: refundReason || 'Customer Exchange',
+        customerName: selectedOrder.customer ? selectedOrder.customer.full_name : undefined,
+        customerPhone: selectedOrder.customer ? selectedOrder.customer.phone : undefined,
+        customerEmail: selectedOrder.customer ? selectedOrder.customer.email : undefined,
+        pointsEarned: Math.max(0, pointsDiff),
+        pointsRedeemed: 0,
+        pointsBalance: selectedOrder.customer 
+          ? Math.max(0, selectedOrder.customer.loyalty_points + pointsDiff) 
+          : 0
+      });
+
+      setSelectedOrder(null);
+      setExchangeNewItems([]);
+      fetchOrders();
+    } else {
+      toast.error(res.error || 'Exchange / Swap failed');
+    }
+  };
+
+  // Dynamic returns and swap calculations
+  const returnsSubtotal = refundItems.reduce((acc, curr) => {
+    const oi = selectedOrder?.order_items?.find((i: any) => i.id === curr.id);
+    return acc + (oi ? oi.unit_price * curr.quantity : 0);
+  }, 0);
+  const preTaxTotal = selectedOrder ? selectedOrder.total_amount - (selectedOrder.tax_amount || 0) : 0;
+  const taxRate = preTaxTotal > 0 ? (selectedOrder.tax_amount || 0) / preTaxTotal : 0.08;
+  const returnsTax = returnsSubtotal * taxRate;
+  const returnsTotal = returnsSubtotal + returnsTax;
+
+  const newSubtotal = exchangeNewItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const newTax = newSubtotal * taxRate;
+  const newTotal = newSubtotal + newTax;
+
+  const netDiff = newTotal - returnsTotal;
+
   const filteredOrders = orders.filter(o => 
     o.id.toLowerCase().includes(search.toLowerCase()) || 
     (o.cashier?.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -524,130 +786,465 @@ export default function OrdersPage() {
         if (!open) {
           setSelectedOrder(null);
           setIsRefunding(false);
+          setRefundMode('none');
+          setExchangeNewItems([]);
         }
       }}>
-        <DialogContent className="max-w-md p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
+        <DialogContent className={cn("p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl transition-all duration-300", refundMode === 'swap' ? 'max-w-4xl' : 'max-w-md')}>
           <div className="p-8 bg-[#fbfbfd] border-b border-gray-50 text-center">
             <div className="w-16 h-16 bg-black text-white rounded-2xl flex items-center justify-center mx-auto mb-4"><ShoppingBag className="h-8 w-8" /></div>
-            <DialogTitle className="text-2xl font-black text-black">{isRefunding ? 'Process Refund' : 'Order Receipt'}</DialogTitle>
+            <DialogTitle className="text-2xl font-black text-black">
+              {refundMode === 'choose' ? 'Choose Transaction' : 
+               refundMode === 'swap' ? 'Swap & Exchange Items' : 
+               refundMode === 'refund' ? 'Process Refund' : 'Order Receipt'}
+            </DialogTitle>
             <p className="text-gray-400 font-bold text-[11px] mt-1 uppercase tracking-widest">#{selectedOrder?.id}</p>
           </div>
           <div className="p-8 space-y-6">
-             <div className="space-y-4">
-                {selectedOrder?.order_items?.map((item: any, idx: number) => {
-                  const ri = refundItems.find(r => r.id === item.id);
-                  const isFullyRefunded = item.quantity === (item.refunded_quantity || 0);
-                  return (
-                    <div key={idx} className="flex justify-between items-start">
-                      <div>
-                        <p className={cn("font-black text-[15px]", isFullyRefunded ? "text-gray-400 line-through" : "text-black")}>{item.products?.name}</p>
-                        <div className="flex flex-wrap items-center gap-1 mt-1">
-                          <span className="text-[11px] text-gray-400 font-bold uppercase">{item.quantity} x ₹{item.unit_price?.toFixed(2)}</span>
-                          {item.product_variants?.model_name && (
-                            <Badge className="bg-amber-50 text-amber-600 border-amber-100 font-bold text-[9px] h-4 py-0 px-1 ml-0.5">
-                              {item.product_variants.model_name}
-                            </Badge>
-                          )}
-                          {item.refunded_quantity > 0 && !isRefunding && (
-                            <Badge className="bg-rose-50 text-rose-600 border-rose-100 font-bold text-[9px] h-4 py-0 px-1 ml-0.5">
-                              Refunded: {item.refunded_quantity}
-                            </Badge>
-                          )}
+            
+            {refundMode === 'choose' ? (
+              <div className="space-y-6 text-center">
+                <p className="text-gray-500 font-bold text-[13px] leading-relaxed">
+                  Select how you would like to handle this request:
+                </p>
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    className="h-28 flex-col gap-2 rounded-2xl border-2 border-gray-100 hover:border-rose-300 hover:bg-rose-50/10 text-rose-600 transition-all p-4 cursor-pointer"
+                    onClick={() => {
+                      setRefundMode('refund');
+                    }}
+                  >
+                    <RefreshCw className="h-6 w-6" />
+                    <span className="font-extrabold text-[14px]">Regular Refund</span>
+                    <span className="text-[10px] text-gray-400 font-medium leading-tight">Return items & refund money</span>
+                  </Button>
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    className="h-28 flex-col gap-2 rounded-2xl border-2 border-gray-100 hover:border-blue-300 hover:bg-blue-50/10 text-[#0071e3] transition-all p-4 cursor-pointer"
+                    onClick={() => {
+                      setRefundMode('swap');
+                      setExchangeNewItems([]);
+                      setSearchNewItem('');
+                    }}
+                  >
+                    <ShoppingBag className="h-6 w-6" />
+                    <span className="font-extrabold text-[14px]">Swap / Exchange</span>
+                    <span className="text-[10px] text-gray-400 font-medium leading-tight">Swap items & settle difference</span>
+                  </Button>
+                </div>
+                <div className="pt-2">
+                  <Button type="button" variant="outline" className="w-full h-13 rounded-2xl font-black text-gray-500" onClick={() => {
+                    setIsRefunding(false);
+                    setRefundMode('none');
+                  }}>
+                    Back to Receipt
+                  </Button>
+                </div>
+              </div>
+            ) : refundMode === 'swap' ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[50vh] overflow-y-auto pr-1">
+                  
+                  {/* LEFT COLUMN: RETURNS */}
+                  <div className="space-y-4 md:border-r md:pr-6 md:border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">1. Select Returns</Label>
+                      <Badge className="bg-rose-50 text-rose-600 border-none font-bold text-[9px] h-4 py-0 px-1">RETURN ITEMS</Badge>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {selectedOrder?.order_items?.map((item: any, idx: number) => {
+                        const ri = refundItems.find(r => r.id === item.id);
+                        const isFullyRefunded = item.quantity === (item.refunded_quantity || 0);
+                        return (
+                          <div key={idx} className="flex justify-between items-center bg-gray-50/50 p-3 rounded-2xl border border-gray-50">
+                            <div className="flex-1 min-w-0 pr-2">
+                              <p className={cn("font-bold text-[13px] truncate", isFullyRefunded ? "text-gray-400 line-through" : "text-black")}>
+                                {item.products?.name}
+                              </p>
+                              <p className="text-[10px] text-gray-400 font-bold mt-0.5">
+                                Max returned: {item.quantity - (item.refunded_quantity || 0)} • ₹{item.unit_price?.toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button 
+                                type="button"
+                                variant="outline" size="icon" className="h-7 w-7 rounded-lg bg-white"
+                                disabled={!ri || ri.quantity <= 0}
+                                onClick={() => setRefundItems(prev => prev.map(p => p.id === item.id ? {...p, quantity: p.quantity - 1} : p))}
+                              >-</Button>
+                              <span className="font-bold text-[12px] w-4 text-center">{ri?.quantity || 0}</span>
+                              <Button 
+                                type="button"
+                                variant="outline" size="icon" className="h-7 w-7 rounded-lg bg-white"
+                                disabled={!ri || ri.quantity >= ri.max}
+                                onClick={() => setRefundItems(prev => prev.map(p => p.id === item.id ? {...p, quantity: p.quantity + 1} : p))}
+                              >+</Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="pt-3 border-t border-dashed flex justify-between items-center font-bold text-[12px]">
+                      <span className="text-gray-400 uppercase tracking-wider">Returns Total</span>
+                      <span className="text-rose-600 font-black text-[14px]">₹{returnsTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* RIGHT COLUMN: PURCHASES & PAYMENTS */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">2. Swap Purchases</Label>
+                      <Badge className="bg-[#0071e3]/10 text-[#0071e3] border-none font-bold text-[9px] h-4 py-0 px-1">NEW PRODUCTS</Badge>
+                    </div>
+
+                    {/* SEARCH INPUT */}
+                    <div className="relative">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Search product SKU/name..."
+                        className="pl-10 h-11 bg-gray-50 border-transparent rounded-xl font-medium"
+                        value={searchNewItem}
+                        onChange={e => setSearchNewItem(e.target.value)}
+                      />
+                      {searchNewItem.trim().length > 0 && (
+                        <div className="absolute left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-100 shadow-xl max-h-48 overflow-y-auto z-50 p-2 space-y-1">
+                          {allProducts.filter(p => p.name.toLowerCase().includes(searchNewItem.toLowerCase()) || p.sku.toLowerCase().includes(searchNewItem.toLowerCase())).slice(0, 5).map(prod => (
+                            <div 
+                              key={prod.id}
+                              className="flex justify-between items-center p-2.5 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors"
+                              onClick={() => handleSwapItemSelection(prod)}
+                            >
+                              <span className="font-bold text-[12px] text-black">{prod.name}</span>
+                              <span className="text-[11px] font-black text-[#0071e3] shrink-0">
+                                {prod.has_variants ? 'Varies' : `₹${prod.price.toFixed(2)}`}
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                      
-                      {isRefunding ? (
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline" size="icon" className="h-8 w-8 rounded-lg"
-                            disabled={!ri || ri.quantity <= 0}
-                            onClick={() => setRefundItems(prev => prev.map(p => p.id === item.id ? {...p, quantity: p.quantity - 1} : p))}
-                          >-</Button>
-                          <span className="font-bold w-4 text-center">{ri?.quantity || 0}</span>
-                          <Button 
-                            variant="outline" size="icon" className="h-8 w-8 rounded-lg"
-                            disabled={!ri || ri.quantity >= ri.max}
-                            onClick={() => setRefundItems(prev => prev.map(p => p.id === item.id ? {...p, quantity: p.quantity + 1} : p))}
-                          >+</Button>
-                        </div>
-                      ) : (
-                        <span className="font-black text-black">₹{item.total_price.toFixed(2)}</span>
                       )}
                     </div>
-                  );
-                })}
-             </div>
-             
-             {selectedOrder?.customer && (
-               <div className="pt-4 border-t border-gray-100 space-y-2 text-[12px]">
-                 <p className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">Customer Details</p>
-                 <div className="bg-gray-50/50 p-3.5 rounded-xl space-y-1 text-[11px]">
-                   <p className="font-black text-black">{selectedOrder.customer.full_name}</p>
-                   <p className="text-gray-500 font-medium">{selectedOrder.customer.phone || selectedOrder.customer.email || 'No contact details'}</p>
-                   <div className="flex gap-4 pt-1.5 font-bold text-gray-400">
-                     <span>Earned: <span className="text-[#0071e3] font-black">+{selectedOrder.points_earned || 0} pts</span></span>
-                     {selectedOrder.points_redeemed > 0 && (
-                       <span>Redeemed: <span className="text-rose-500 font-black">-{selectedOrder.points_redeemed} pts</span></span>
-                     )}
-                   </div>
-                 </div>
-               </div>
-             )}
 
-             {!isRefunding ? (
-               <>
-                 <div className="pt-6 border-t border-gray-100 flex justify-between items-center">
-                    <span className="text-lg font-black uppercase text-gray-400 tracking-widest">Total Paid</span>
-                    <span className="text-3xl font-black text-black">₹{selectedOrder?.total_amount.toFixed(2)}</span>
-                 </div>
-                 <div className="grid grid-cols-2 gap-3 pt-4">
-                    <Button variant="outline" className="h-14 rounded-2xl font-black" onClick={() => setSelectedOrder(null)}>Close</Button>
-                    <div className="flex gap-2">
-                      <Button variant="outline" className="h-14 flex-1 rounded-2xl text-rose-600 border-rose-200 hover:bg-rose-50" disabled={selectedOrder?.payment_status === 'refunded'} onClick={handleInitiateRefund}>
-                         Refund
-                      </Button>
-                      <Button className="h-14 flex-1 rounded-2xl bg-black text-white font-black" onClick={() => handleReprint(selectedOrder)}>
-                         <Printer className="h-5 w-5" />
-                      </Button>
+                    {/* EXCHANGE PRODUCTS LIST */}
+                    <div className="space-y-2.5 max-h-36 overflow-y-auto pr-1">
+                      {exchangeNewItems.length === 0 ? (
+                        <p className="text-[11px] text-gray-400 font-bold text-center py-6 border border-dashed rounded-2xl">
+                          Search above to add exchange products.
+                        </p>
+                      ) : (
+                        exchangeNewItems.map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center bg-gray-50/50 p-3 rounded-2xl border border-gray-50">
+                            <div className="flex-1 min-w-0 pr-2">
+                              <p className="font-bold text-[13px] text-black truncate">{item.name}</p>
+                              <div className="flex flex-wrap gap-1 mt-0.5 text-[9px] font-bold text-gray-400">
+                                <span>₹{item.price.toFixed(2)}</span>
+                                {item.variant_name && <span className="text-amber-600 bg-amber-50 px-1 rounded">{item.variant_name}</span>}
+                                {item.serial_number && <span className="text-blue-600 bg-blue-50 px-1 rounded">S/N: {item.serial_number}</span>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button 
+                                type="button"
+                                variant="outline" size="icon" className="h-6 w-6 rounded bg-white"
+                                disabled={item.quantity <= 1}
+                                onClick={() => setExchangeNewItems(prev => prev.map((p, i) => i === idx ? {...p, quantity: p.quantity - 1} : p))}
+                              >-</Button>
+                              <span className="font-bold text-[11px] w-3 text-center">{item.quantity}</span>
+                              <Button 
+                                type="button"
+                                variant="outline" size="icon" className="h-6 w-6 rounded bg-white"
+                                disabled={item.quantity >= item.stock_quantity}
+                                onClick={() => setExchangeNewItems(prev => prev.map((p, i) => i === idx ? {...p, quantity: p.quantity + 1} : p))}
+                              >+</Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-gray-300 hover:text-rose-500 rounded ml-1"
+                                onClick={() => setExchangeNewItems(prev => prev.filter((_, i) => i !== idx))}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
-                 </div>
-               </>
-             ) : (
-               <>
-                 <div className="space-y-2 pt-4">
-                   <Label className="text-[10px] font-black uppercase text-gray-400">Refund Reason (Optional)</Label>
-                   <Input 
-                     placeholder="e.g. Defective item, changed mind..."
-                     className="bg-gray-50 border-transparent rounded-xl"
-                     value={refundReason}
-                     onChange={e => setRefundReason(e.target.value)}
-                   />
-                 </div>
-                 <div className="pt-6 border-t border-gray-100 flex justify-between items-center">
-                    <span className="text-lg font-black uppercase text-gray-400 tracking-widest">Refund Amt</span>
-                    <span className="text-3xl font-black text-rose-500">
-                      ₹{refundItems.reduce((acc, curr) => {
-                        const oi = selectedOrder?.order_items.find((i: any) => i.id === curr.id);
-                        return acc + (oi ? oi.unit_price * curr.quantity : 0);
-                      }, 0).toFixed(2)}
-                      <span className="text-sm text-gray-400 block text-right font-medium">+ Tax</span>
+
+                    <div className="pt-3 border-t border-dashed flex justify-between items-center font-bold text-[12px]">
+                      <span className="text-gray-400 uppercase tracking-wider">Purchases Total</span>
+                      <span className="text-[#0071e3] font-black text-[14px]">₹{newTotal.toFixed(2)}</span>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* BOTTOM SUMMARY BLOCK (COMMON UNDER BOTH) */}
+                <div className="pt-4 border-t border-gray-100 space-y-4 w-full">
+                  <div className="flex justify-between items-center bg-gray-50 p-4 rounded-[1.5rem] border border-gray-100">
+                    <span className="text-[12px] font-black uppercase text-gray-500 tracking-wider">
+                      {netDiff >= 0 ? 'Balance to Pay (Customer)' : 'Balance to Refund (Store)'}
                     </span>
-                 </div>
-                 <div className="grid grid-cols-2 gap-3 pt-4">
-                    <Button variant="outline" className="h-14 rounded-2xl font-black" onClick={() => setIsRefunding(false)}>Cancel</Button>
-                    <Button 
-                      className="h-14 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-black" 
-                      onClick={handleSubmitRefund}
-                      disabled={isSubmittingRefund || refundItems.every(i => i.quantity === 0)}
-                    >
-                       Confirm Refund
+                    <span className={cn("text-2xl font-black", netDiff >= 0 ? "text-emerald-600" : "text-rose-500")}>
+                      ₹{Math.abs(netDiff).toFixed(2)}
+                    </span>
+                  </div>
+
+                  {Math.abs(netDiff) > 0.01 && (
+                    <div className="space-y-3 bg-[#f5f5f7] p-4 rounded-[1.5rem]">
+                      <Label className="text-[9px] font-black uppercase text-gray-400 tracking-wider">
+                        {netDiff > 0 ? 'Settle Payment Via' : 'Refund Difference Via'}
+                      </Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['cash', 'card', 'upi'] as const).map((m) => (
+                          <Button
+                            key={m}
+                            type="button"
+                            variant={exchangePaymentMethod === m ? 'default' : 'outline'}
+                            className={cn("h-10 rounded-xl text-[11px] font-bold capitalize transition-all bg-white hover:bg-gray-50 cursor-pointer", exchangePaymentMethod === m ? "bg-black text-white hover:bg-gray-800" : "border-gray-200")}
+                            onClick={() => setExchangePaymentMethod(m)}
+                          >
+                            {m}
+                          </Button>
+                        ))}
+                      </div>
+
+                      {netDiff > 0 && exchangePaymentMethod === 'cash' && (
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                          <div className="space-y-1">
+                            <Label className="text-[8px] font-black text-gray-400 uppercase">Cash Tendered</Label>
+                            <Input
+                              type="number"
+                              placeholder="0.00"
+                              className="h-10 bg-white rounded-xl text-[12px] font-bold text-center"
+                              value={exchangeCashTendered}
+                              onChange={e => setExchangeCashTendered(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-1 flex flex-col justify-end">
+                            <Label className="text-[8px] font-black text-gray-400 uppercase">Change Due</Label>
+                            <div className="h-10 rounded-xl bg-white flex items-center justify-center font-bold text-[12px] text-emerald-600 border border-gray-100 shadow-sm">
+                              ₹{Math.max(0, (parseFloat(exchangeCashTendered) || 0) - netDiff).toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <Button type="button" variant="outline" className="h-14 rounded-2xl font-black cursor-pointer" onClick={() => {
+                      setRefundMode('choose');
+                    }}>
+                      Back
                     </Button>
-                 </div>
-               </>
-             )}
+                    <Button 
+                      type="button"
+                      className="h-14 rounded-2xl bg-[#0071e3] hover:bg-[#0077ed] text-white font-black cursor-pointer" 
+                      onClick={handleSubmitExchange}
+                      disabled={isSubmittingRefund || refundItems.every(i => i.quantity === 0) || exchangeNewItems.length === 0}
+                    >
+                      {isSubmittingRefund ? 'Processing...' : 'Confirm Exchange'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : refundMode === 'refund' ? (
+              <>
+                <div className="space-y-2 pt-4">
+                  <Label className="text-[10px] font-black uppercase text-gray-400">Refund Reason (Optional)</Label>
+                  <Input 
+                    placeholder="e.g. Defective item, changed mind..."
+                    className="bg-gray-50 border-transparent rounded-xl"
+                    value={refundReason}
+                    onChange={e => setRefundReason(e.target.value)}
+                  />
+                </div>
+                <div className="pt-6 border-t border-gray-100 flex justify-between items-center">
+                   <span className="text-lg font-black uppercase text-gray-400 tracking-widest">Refund Amt</span>
+                   <span className="text-3xl font-black text-rose-500">
+                     ₹{refundItems.reduce((acc, curr) => {
+                       const oi = selectedOrder?.order_items.find((i: any) => i.id === curr.id);
+                       return acc + (oi ? oi.unit_price * curr.quantity : 0);
+                     }, 0).toFixed(2)}
+                     <span className="text-sm text-gray-400 block text-right font-medium">+ Tax</span>
+                   </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-4">
+                   <Button type="button" variant="outline" className="h-14 rounded-2xl font-black cursor-pointer" onClick={() => setRefundMode('choose')}>Back</Button>
+                   <Button 
+                     type="button"
+                     className="h-14 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-black cursor-pointer" 
+                     onClick={handleSubmitRefund}
+                     disabled={isSubmittingRefund || refundItems.every(i => i.quantity === 0)}
+                   >
+                      Confirm Refund
+                   </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {selectedOrder?.order_items?.map((item: any, idx: number) => {
+                    const ri = refundItems.find(r => r.id === item.id);
+                    const isFullyRefunded = item.quantity === (item.refunded_quantity || 0);
+                    return (
+                      <div key={idx} className="flex justify-between items-start">
+                        <div>
+                          <p className={cn("font-black text-[15px]", isFullyRefunded ? "text-gray-400 line-through" : "text-black")}>{item.products?.name}</p>
+                          <div className="flex flex-wrap items-center gap-1 mt-1">
+                            <span className="text-[11px] text-gray-400 font-bold uppercase">{item.quantity} x ₹{item.unit_price?.toFixed(2)}</span>
+                            {item.product_variants?.model_name && (
+                              <Badge className="bg-amber-50 text-amber-600 border-amber-100 font-bold text-[9px] h-4 py-0 px-1 ml-0.5">
+                                {item.product_variants.model_name}
+                              </Badge>
+                            )}
+                            {item.refunded_quantity > 0 && (
+                              <Badge className="bg-rose-50 text-rose-600 border-rose-100 font-bold text-[9px] h-4 py-0 px-1 ml-0.5">
+                                Refunded: {item.refunded_quantity}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <span className="font-black text-black">₹{item.total_price.toFixed(2)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {selectedOrder?.customer && (
+                  <div className="pt-4 border-t border-gray-100 space-y-2 text-[12px]">
+                    <p className="font-bold text-gray-400 uppercase tracking-widest text-[10px]">Customer Details</p>
+                    <div className="bg-gray-50/50 p-3.5 rounded-xl space-y-1 text-[11px]">
+                      <p className="font-black text-black">{selectedOrder.customer.full_name}</p>
+                      <p className="text-gray-500 font-medium">{selectedOrder.customer.phone || selectedOrder.customer.email || 'No contact details'}</p>
+                      <div className="flex gap-4 pt-1.5 font-bold text-gray-400">
+                        <span>Earned: <span className="text-[#0071e3] font-black">+{selectedOrder.points_earned || 0} pts</span></span>
+                        {selectedOrder.points_redeemed > 0 && (
+                          <span>Redeemed: <span className="text-rose-500 font-black">-{selectedOrder.points_redeemed} pts</span></span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-6 border-t border-gray-100 flex justify-between items-center">
+                   <span className="text-lg font-black uppercase text-gray-400 tracking-widest">Total Paid</span>
+                   <span className="text-3xl font-black text-black">₹{selectedOrder?.total_amount.toFixed(2)}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-4">
+                   <Button type="button" variant="outline" className="h-14 rounded-2xl font-black cursor-pointer" onClick={() => setSelectedOrder(null)}>Close</Button>
+                   <div className="flex gap-2">
+                     <Button type="button" variant="outline" className="h-14 flex-1 rounded-2xl text-rose-600 border-rose-200 hover:bg-rose-50 cursor-pointer" disabled={selectedOrder?.payment_status === 'refunded'} onClick={() => {
+                       handleInitiateRefund();
+                       setRefundMode('choose');
+                     }}>
+                        Refund
+                     </Button>
+                     <Button type="button" className="h-14 flex-1 rounded-2xl bg-black text-white font-black cursor-pointer" onClick={() => handleReprint(selectedOrder)}>
+                        <Printer className="h-5 w-5" />
+                     </Button>
+                   </div>
+                </div>
+              </>
+            )}
+
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* SWAP CUSTOMIZER SUB-DIALOG */}
+      {swapCustomizerOpen && selectedSwapProduct && (
+        <Dialog open={swapCustomizerOpen} onOpenChange={setSwapCustomizerOpen}>
+          <DialogContent className="max-w-md p-8 rounded-[2.5rem] border-none bg-white">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-black text-black">Customize Swap Item</DialogTitle>
+              <p className="text-gray-400 font-bold text-[10px] uppercase tracking-wider mt-1">{selectedSwapProduct.name}</p>
+            </DialogHeader>
+            <div className="space-y-6 pt-4">
+              {selectedSwapProduct.has_variants && (
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-gray-400">Select Model / Variant</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {swapVariants.map((v) => (
+                      <Button
+                        key={v.id}
+                        type="button"
+                        variant={selectedSwapVariant?.id === v.id ? 'default' : 'outline'}
+                        className={cn("h-12 rounded-xl text-[12px] font-bold cursor-pointer", selectedSwapVariant?.id === v.id ? "bg-[#0071e3] text-white hover:bg-[#0077ed]" : "")}
+                        onClick={async () => {
+                          setSelectedSwapVariant(v);
+                          if (selectedSwapProduct.is_serialized) {
+                            const { data: serials } = await supabase
+                              .from('serialized_inventory')
+                              .select('*')
+                              .eq('variant_id', v.id)
+                              .eq('status', 'in_stock');
+                            setSwapSerials(serials || []);
+                            setSelectedSwapSerial('');
+                          }
+                        }}
+                      >
+                        {v.model_name} (₹{parseFloat(v.price).toFixed(2)})
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedSwapProduct.is_serialized && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-gray-400">Available Serial Numbers</Label>
+                    {swapSerials.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                        {swapSerials.map((s) => (
+                          <Button
+                            key={s.id}
+                            type="button"
+                            variant={selectedSwapSerial === s.serial_number ? 'default' : 'outline'}
+                            className={cn("h-10 rounded-xl text-[11px] font-mono font-bold cursor-pointer", selectedSwapSerial === s.serial_number ? "bg-[#0071e3] text-white hover:bg-[#0077ed]" : "")}
+                            onClick={() => {
+                              setSelectedSwapSerial(s.serial_number);
+                              setManualSwapSerialInput('');
+                            }}
+                          >
+                            {s.serial_number}
+                          </Button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-amber-500 font-bold">No in-stock serial numbers found in database.</p>
+                    )}
+                  </div>
+                  <div className="h-px bg-gray-100" />
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase text-gray-400">Or Type Serial Number Manually</Label>
+                    <Input
+                      placeholder="Enter custom serial number..."
+                      className="bg-gray-50 border-transparent rounded-xl"
+                      value={manualSwapSerialInput}
+                      onChange={(e) => {
+                        setManualSwapSerialInput(e.target.value);
+                        setSelectedSwapSerial('');
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 pt-4 border-t border-gray-100">
+                <Button type="button" variant="outline" className="h-12 rounded-xl font-bold cursor-pointer" onClick={() => setSwapCustomizerOpen(false)}>Cancel</Button>
+                <Button type="button" className="h-12 rounded-xl bg-black hover:bg-gray-800 text-white font-bold cursor-pointer" onClick={handleAddCustomizedSwapItem}>Add to Swap</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

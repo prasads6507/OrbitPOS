@@ -23,7 +23,7 @@ interface ReceiptPrinterProps {
     cashTendered?: string;
     changeDue?: number;
     cashierName?: string;
-    type?: 'sale' | 'refund' | 'void';
+    type?: 'sale' | 'refund' | 'void' | 'swap';
     refundReason?: string;
     customerName?: string;
     customerPhone?: string;
@@ -59,6 +59,7 @@ export function ReceiptPrinter({ receiptData }: ReceiptPrinterProps) {
           <p className="font-bold uppercase tracking-widest text-[14px]">
             {receiptData.type === 'refund' ? '*** REFUND RECEIPT ***' : 
              receiptData.type === 'void' ? '*** VOID RECEIPT ***' : 
+             receiptData.type === 'swap' ? '*** SWAP/EXCHANGE RECEIPT ***' :
              '*** SALES RECEIPT ***'}
           </p>
         </div>
@@ -100,45 +101,63 @@ export function ReceiptPrinter({ receiptData }: ReceiptPrinterProps) {
             <span className="w-1/4 text-center">QTY</span>
             <span className="w-1/4 text-right">TOTAL</span>
           </div>
-          {receiptData.items.map((item, i) => (
-            <div key={i} className="space-y-0.5 border-b border-gray-50 pb-1">
-              <div className="flex justify-between">
-                <span className="w-1/2 truncate">{item.name || item.products?.name}</span>
-                <span className="w-1/4 text-center">x{item.quantity}</span>
-                <span className="w-1/4 text-right">
-                  {receiptData.type === 'refund' ? '-' : ''}₹{((item.quantity * (item.price || item.unit_price)) || 0).toFixed(2)}
-                </span>
-              </div>
-              {(item.variant_name || item.serial_number) && (
-                <div className="text-[9px] opacity-75 italic pl-2 flex flex-col">
-                  {item.variant_name && <span>Model: {item.variant_name}</span>}
-                  {item.serial_number && <span>S/N: {item.serial_number}</span>}
+          {receiptData.items.map((item, i) => {
+            const isReturn = item.is_return || receiptData.type === 'refund';
+            return (
+              <div key={i} className="space-y-0.5 border-b border-gray-50 pb-1">
+                <div className="flex justify-between">
+                  <span className="w-1/2 truncate">
+                    {receiptData.type === 'swap' ? (isReturn ? '[RETURN] ' : '[SWAP] ') : ''}
+                    {item.name || item.products?.name}
+                  </span>
+                  <span className="w-1/4 text-center">x{item.quantity}</span>
+                  <span className="w-1/4 text-right">
+                    {isReturn ? '-' : ''}₹{((item.quantity * (item.price || item.unit_price)) || 0).toFixed(2)}
+                  </span>
                 </div>
-              )}
-            </div>
-          ))}
+                {(item.variant_name || item.serial_number) && (
+                  <div className="text-[9px] opacity-75 italic pl-2 flex flex-col">
+                    {item.variant_name && <span>Model: {item.variant_name}</span>}
+                    {item.serial_number && <span>S/N: {item.serial_number}</span>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className="space-y-1 pt-2">
           <p className="flex justify-between">
             <span>SUBTOTAL:</span> 
-            <span>{receiptData.type === 'refund' ? '-' : ''}₹{receiptData.subtotal.toFixed(2)}</span>
+            <span>
+              {receiptData.type === 'refund' || (receiptData.type === 'swap' && receiptData.subtotal < 0) ? '-' : ''}
+              ₹{Math.abs(receiptData.subtotal).toFixed(2)}
+            </span>
           </p>
           {receiptData.tax1 !== undefined && receiptData.tax2 !== undefined ? (
             <>
               <p className="flex justify-between">
                 <span>{(receiptData.tax1_name || 'CGST').toUpperCase()} ({(receiptData.tax1_rate || 4).toFixed(1)}%):</span>
-                <span>{receiptData.type === 'refund' ? '-' : ''}₹{receiptData.tax1.toFixed(2)}</span>
+                <span>
+                  {receiptData.type === 'refund' || (receiptData.type === 'swap' && receiptData.tax1 < 0) ? '-' : ''}
+                  ₹{Math.abs(receiptData.tax1).toFixed(2)}
+                </span>
               </p>
               <p className="flex justify-between">
                 <span>{(receiptData.tax2_name || 'SGST').toUpperCase()} ({(receiptData.tax2_rate || 4).toFixed(1)}%):</span>
-                <span>{receiptData.type === 'refund' ? '-' : ''}₹{receiptData.tax2.toFixed(2)}</span>
+                <span>
+                  {receiptData.type === 'refund' || (receiptData.type === 'swap' && receiptData.tax2 < 0) ? '-' : ''}
+                  ₹{Math.abs(receiptData.tax2).toFixed(2)}
+                </span>
               </p>
             </>
           ) : (
             <p className="flex justify-between">
               <span>TAX:</span> 
-              <span>{receiptData.type === 'refund' ? '-' : ''}₹{receiptData.tax.toFixed(2)}</span>
+              <span>
+                {receiptData.type === 'refund' || (receiptData.type === 'swap' && receiptData.tax < 0) ? '-' : ''}
+                ₹{Math.abs(receiptData.tax).toFixed(2)}
+              </span>
             </p>
           )}
           {receiptData.discount > 0 && (
@@ -154,8 +173,15 @@ export function ReceiptPrinter({ receiptData }: ReceiptPrinterProps) {
             </p>
           )}
           <p className="flex justify-between text-lg font-bold border-t pt-2">
-            <span>TOTAL:</span> 
-            <span>{receiptData.type === 'refund' ? '-' : ''}₹{receiptData.total.toFixed(2)}</span>
+            <span>
+              {receiptData.type === 'swap' 
+                ? (receiptData.total >= 0 ? 'NET DUE:' : 'NET REFUND:') 
+                : 'TOTAL:'}
+            </span> 
+            <span>
+              {receiptData.type === 'refund' || (receiptData.type === 'swap' && receiptData.total < 0) ? '-' : ''}
+              ₹{Math.abs(receiptData.total).toFixed(2)}
+            </span>
           </p>
         </div>
 

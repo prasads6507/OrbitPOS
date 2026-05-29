@@ -190,3 +190,241 @@ export async function refundOrder(orderId: string, itemsToRefund: { id: string, 
   }
 }
 
+export async function exchangeOrder(
+  orderId: string,
+  itemsToRefund: { id: string; quantity: number }[],
+  newItems: { product_id: string; quantity: number; variant_id?: string; serial_number?: string; unit_price: number }[],
+  paymentMethod: string,
+  netDifference: number,
+  reason: string
+) {
+  const supabase = getSupabaseAdmin();
+
+  try {
+    // 1. Fetch order and its items
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('*, order_items(*)')
+      .eq('id', orderId)
+      .single();
+
+    if (orderError) throw orderError;
+
+    // 2. Process each item to refund (returned items)
+    let totalRefundAmount = 0;
+    for (const itemRefund of itemsToRefund) {
+      const orderItem = order.order_items.find((oi: any) => oi.id === itemRefund.id);
+      if (!orderItem) continue;
+
+      const remainingQty = orderItem.quantity - (orderItem.refunded_quantity || 0);
+      if (itemRefund.quantity > remainingQty) {
+        throw new Error(`Cannot refund more than remaining quantity for ${orderItem.product_id}`);
+      }
+
+      // Update order item refunded quantity
+      const { error: itemUpdateError } = await supabase
+        .from('order_items')
+        .update({ refunded_quantity: (orderItem.refunded_quantity || 0) + itemRefund.quantity })
+        .eq('id', orderItem.id);
+
+      if (itemUpdateError) throw itemUpdateError;
+
+      // Restore inventory
+      if (orderItem.variant_id) {
+        const { data: variant } = await supabase
+          .from('product_variants')
+          .select('stock_quantity')
+          .eq('id', orderItem.variant_id)
+          .single();
+
+        await supabase
+          .from('product_variants')
+          .update({ stock_quantity: (variant?.stock_quantity || 0) + itemRefund.quantity })
+          .eq('id', orderItem.variant_id);
+
+        if (orderItem.serial_number) {
+          await supabase
+            .from('serialized_inventory')
+            .update({ status: 'in_stock', order_id: null })
+            .eq('variant_id', orderItem.variant_id)
+            .eq('serial_number', orderItem.serial_number);
+        }
+      } else {
+        const { data: product } = await supabase
+          .from('products')
+          .select('stock_quantity')
+          .eq('id', orderItem.product_id)
+          .single();
+
+        await supabase
+          .from('products')
+          .update({ stock_quantity: (product?.stock_quantity || 0) + itemRefund.quantity })
+          .eq('id', orderItem.product_id);
+
+        if (orderItem.serial_number) {
+          await supabase
+            .from('serialized_inventory')
+            .update({ status: 'in_stock', order_id: null })
+            .eq('product_id', orderItem.product_id)
+            .eq('serial_number', orderItem.serial_number);
+        }
+      }
+
+      // Log inventory change
+      await supabase.from('inventory_logs').insert({
+        product_id: orderItem.product_id,
+        store_id: order.store_id,
+        change_amount: itemRefund.quantity,
+        reason: 'return'
+      });
+
+      totalRefundAmount += orderItem.unit_price * itemRefund.quantity;
+    }
+
+    // 3. Process new exchange items
+    let totalNewAmount = 0;
+    const newItemsToInsert: any[] = [];
+
+    for (const newItem of newItems) {
+      // Decrement stock in DB
+      if (newItem.variant_id) {
+        const { data: variant } = await supabase
+          .from('product_variants')
+          .select('stock_quantity')
+          .eq('id', newItem.variant_id)
+          .single();
+
+        if (!variant || variant.stock_quantity < newItem.quantity) {
+          throw new Error(`Insufficient stock for variant ${newItem.variant_id}`);
+        }
+
+        await supabase
+          .from('product_variants')
+          .update({ stock_quantity: Math.max(0, variant.stock_quantity - newItem.quantity) })
+          .eq('id', newItem.variant_id);
+
+        if (newItem.serial_number) {
+          await supabase
+            .from('serialized_inventory')
+            .update({ status: 'sold', order_id: order.id })
+            .eq('variant_id', newItem.variant_id)
+            .eq('serial_number', newItem.serial_number);
+        }
+      } else {
+        const { data: product } = await supabase
+          .from('products')
+          .select('stock_quantity')
+          .eq('id', newItem.product_id)
+          .single();
+
+        if (!product || product.stock_quantity < newItem.quantity) {
+          throw new Error(`Insufficient stock for product ${newItem.product_id}`);
+        }
+
+        await supabase
+          .from('products')
+          .update({ stock_quantity: Math.max(0, product.stock_quantity - newItem.quantity) })
+          .eq('id', newItem.product_id);
+
+        if (newItem.serial_number) {
+          await supabase
+            .from('serialized_inventory')
+            .update({ status: 'sold', order_id: order.id })
+            .eq('product_id', newItem.product_id)
+            .eq('serial_number', newItem.serial_number);
+        }
+      }
+
+      // Log inventory change
+      await supabase.from('inventory_logs').insert({
+        product_id: newItem.product_id,
+        store_id: order.store_id,
+        change_amount: -newItem.quantity,
+        reason: 'sale'
+      });
+
+      // Prepare order item record
+      newItemsToInsert.push({
+        order_id: order.id,
+        product_id: newItem.product_id,
+        quantity: newItem.quantity,
+        unit_price: newItem.unit_price,
+        total_price: newItem.unit_price * newItem.quantity,
+        variant_id: newItem.variant_id || null,
+        serial_number: newItem.serial_number || null,
+        refunded_quantity: 0
+      });
+
+      totalNewAmount += newItem.unit_price * newItem.quantity;
+    }
+
+    // Insert new items into database
+    if (newItemsToInsert.length > 0) {
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(newItemsToInsert);
+
+      if (itemsError) throw itemsError;
+    }
+
+    // 4. Recalculate and update order totals
+    const preTaxTotal = order.total_amount - (order.tax_amount || 0);
+    const taxRate = preTaxTotal > 0 ? (order.tax_amount || 0) / preTaxTotal : 0.08; // fallback 8%
+    
+    // Tax differences
+    const returnedTax = totalRefundAmount * taxRate;
+    const returnedTotalWithTax = totalRefundAmount + returnedTax;
+
+    const newTax = totalNewAmount * taxRate;
+    const newTotalWithTax = totalNewAmount + newTax;
+
+    const actualNetDiffWithTax = newTotalWithTax - returnedTotalWithTax;
+
+    const updatedTotalAmount = Math.max(0, order.total_amount + actualNetDiffWithTax);
+    const updatedTaxAmount = Math.max(0, (order.tax_amount || 0) + (newTax - returnedTax));
+    const newRefundedAmount = (order.refunded_amount || 0) + returnedTotalWithTax;
+
+    // Determine loyalty point adjustments
+    let pointsAdjustment = 0;
+    if (order.customer_id) {
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('loyalty_points')
+        .eq('id', order.customer_id)
+        .maybeSingle();
+
+      if (customer) {
+        // net spend difference in rupees / 100 = points to change
+        pointsAdjustment = Math.floor(actualNetDiffWithTax / 100);
+        const newPoints = Math.max(0, customer.loyalty_points + pointsAdjustment);
+        
+        await supabase
+          .from('customers')
+          .update({ loyalty_points: newPoints })
+          .eq('id', order.customer_id);
+      }
+    }
+
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({
+        total_amount: updatedTotalAmount,
+        tax_amount: updatedTaxAmount,
+        refunded_amount: newRefundedAmount,
+        refund_reason: reason,
+        points_earned: Math.max(0, (order.points_earned || 0) + pointsAdjustment),
+        payment_status: 'completed',
+        refunded_at: new Date().toISOString()
+      })
+      .eq('id', orderId);
+
+    if (updateError) throw updateError;
+
+    revalidatePath('/orders');
+    revalidatePath('/dashboard');
+    return { success: true };
+  } catch (error: any) {
+    console.error('Exchange order error:', error);
+    return { success: false, error: error.message };
+  }
+}

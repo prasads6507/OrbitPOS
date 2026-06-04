@@ -295,8 +295,8 @@ export default function ReportsPage() {
       </div>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex bg-white border border-gray-100 p-1 rounded-2xl shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap bg-white border border-gray-100 p-1 rounded-2xl shadow-sm">
             {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((r) => (
               <button
                 key={r}
@@ -355,7 +355,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-6">
         <ReportCard title="Net Revenue" value={`₹${summary.totalRevenue.toLocaleString()}`} icon={IndianRupee} color="blue" />
         <ReportCard title="Total Loss" value={`₹${summary.totalLoss.toLocaleString()}`} icon={TrendingUp} color="rose" />
         <ReportCard title="Orders" value={summary.totalOrders.toString()} icon={ShoppingBag} color="indigo" />

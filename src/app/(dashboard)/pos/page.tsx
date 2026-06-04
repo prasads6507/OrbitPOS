@@ -827,7 +827,7 @@ export default function POSPage() {
       </div>
 
       {/* Cart / Checkout Sidebar */}
-      <div className="w-full lg:w-[400px] flex flex-col h-[calc(100vh-110px)] bg-white rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.08)] border border-gray-100 overflow-hidden shrink-0 sticky top-0">
+      <div className="w-full lg:w-[400px] flex flex-col h-auto lg:h-[calc(100vh-110px)] bg-white rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.08)] border border-gray-100 overflow-hidden shrink-0 lg:sticky lg:top-0">
         {/* Cart Header */}
         <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between bg-[#fbfbfd]/80 backdrop-blur-md shrink-0">
           <div>

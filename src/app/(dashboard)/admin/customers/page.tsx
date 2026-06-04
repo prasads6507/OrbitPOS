@@ -61,9 +61,14 @@ export default function CustomersPage() {
         const urlParams = new URLSearchParams(window.location.search);
         const searchParam = urlParams.get('search');
         if (searchParam) {
-          setSearch(searchParam);
-          // fetch that specific customer and open modal
-          fetchSpecificCustomer(searchParam);
+          // If the search param is a UUID (from clicking a customer in another page),
+          // don't put it in the search bar, just load the specific customer
+          if (searchParam.length > 20 && searchParam.includes('-')) {
+            fetchSpecificCustomer(searchParam);
+          } else {
+            setSearch(searchParam);
+            fetchCustomers();
+          }
         } else {
           fetchCustomers();
         }
@@ -153,6 +158,18 @@ export default function CustomersPage() {
     setSelectedCustomer(customer);
     setCustomerOrders([]);
     fetchCustomerOrders(customer.id);
+  };
+
+  const handleCloseCustomerModal = () => {
+    setSelectedCustomer(null);
+    setSearch('');
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('search')) {
+        url.searchParams.delete('search');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
   };
 
   const handleBroadcast = async () => {
@@ -461,7 +478,7 @@ export default function CustomersPage() {
         </Table>
       </div>
 
-      <Dialog open={!!selectedCustomer} onOpenChange={(open) => !open && setSelectedCustomer(null)}>
+      <Dialog open={!!selectedCustomer} onOpenChange={(open) => !open && handleCloseCustomerModal()}>
         <DialogContent className="sm:max-w-3xl w-full p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
           <div className="bg-gradient-to-b from-gray-50 to-white max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="p-8 border-b border-gray-100 flex items-start justify-between">

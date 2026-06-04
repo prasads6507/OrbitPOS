@@ -17,7 +17,8 @@ import {
   TrendingUp,
   Clock,
   Printer,
-  Receipt
+  Receipt,
+  Megaphone
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -46,11 +47,11 @@ export default function CustomersPage() {
   const [customerOrders, setCustomerOrders] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState<any | null>(null);
-
-  const [showPromoModal, setShowPromoModal] = useState(false);
-  const [promoMessage, setPromoMessage] = useState('');
-  const [promoAudience, setPromoAudience] = useState('all');
-  const [sendingPromo, setSendingPromo] = useState(false);
+  
+  // Broadcast State
+  const [broadcastModalOpen, setBroadcastModalOpen] = useState(false);
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
 
   const storeToUse = activeStoreId || profile?.store_id;
 
@@ -154,6 +155,40 @@ export default function CustomersPage() {
     fetchCustomerOrders(customer.id);
   };
 
+  const handleBroadcast = async () => {
+    if (!broadcastMessage.trim()) {
+      toast.error('Please enter a message to broadcast');
+      return;
+    }
+    
+    setIsBroadcasting(true);
+    try {
+      const response = await fetch('/api/whatsapp/send-promotion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          storeId: storeToUse,
+          message: broadcastMessage
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send broadcast');
+      }
+
+      toast.success(`Broadcast complete! Sent: ${data.successCount}, Failed: ${data.failureCount}`);
+      setBroadcastModalOpen(false);
+      setBroadcastMessage('');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send broadcast');
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
   useEffect(() => {
     if (receiptOrder) {
       const timer = setTimeout(() => {
@@ -245,44 +280,6 @@ export default function CustomersPage() {
     }, 150);
   };
 
-  const handleSendPromotion = async () => {
-    if (!promoMessage.trim()) {
-      toast.error('Please enter a message to send');
-      return;
-    }
-    
-    setSendingPromo(true);
-    try {
-      const res = await fetch('/api/whatsapp/send-promotion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          storeId: storeToUse,
-          message: promoMessage,
-          audience: promoAudience
-        })
-      });
-      
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to send promotions');
-      }
-      
-      if (data.count === 0) {
-        toast.info(data.message || 'No customers found with phone numbers.');
-      } else {
-        toast.success(`Sent messages successfully to ${data.sentCount} customers!`);
-      }
-      setShowPromoModal(false);
-      setPromoMessage('');
-    } catch (err: any) {
-      toast.error(err.message || 'An error occurred while sending');
-    } finally {
-      setSendingPromo(false);
-    }
-  };
-
   const handlePrintReceipt = (order: any) => {
     const isRefunded = order.payment_status === 'refunded' || order.payment_status === 'partially_refunded';
     const isSwap = order.payment_status === 'exchanged';
@@ -338,9 +335,12 @@ export default function CustomersPage() {
           <p className="text-[#86868b] font-medium mt-1">Manage customers, view purchase history, and track loyalty.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={() => setShowPromoModal(true)} className="rounded-2xl h-11 font-bold bg-[#0071e3] hover:bg-[#0071e3]/90">
-            <Mail className="mr-2 h-4 w-4" />
-            Send Promotion
+          <Button 
+            onClick={() => setBroadcastModalOpen(true)} 
+            className="rounded-2xl h-11 font-bold bg-[#0071e3] hover:bg-[#0077ED] text-white shadow-sm"
+          >
+            <Megaphone className="mr-2 h-4 w-4" />
+            Broadcast
           </Button>
           <Button onClick={fetchCustomers} variant="outline" className="rounded-2xl h-11 font-bold">
             <RefreshCw className="mr-2 h-4 w-4" />
@@ -596,60 +596,68 @@ export default function CustomersPage() {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Broadcast Modal */}
+      <Dialog open={broadcastModalOpen} onOpenChange={(open) => !isBroadcasting && setBroadcastModalOpen(open)}>
+        <DialogContent className="sm:max-w-md w-full p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
+          <div className="bg-gradient-to-br from-white to-gray-50/80 p-8">
+            <DialogHeader className="mb-6">
+              <DialogTitle className="text-2xl font-bold text-black flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-blue-50 text-[#0071e3]">
+                  <Megaphone className="h-5 w-5" />
+                </div>
+                Broadcast Promotion
+              </DialogTitle>
+            </DialogHeader>
 
-      <Dialog open={showPromoModal} onOpenChange={setShowPromoModal}>
-        <DialogContent className="sm:max-w-md w-full p-6 rounded-[2.5rem] border-none shadow-2xl">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="text-2xl font-black text-black flex items-center gap-2">
-              <Mail className="h-6 w-6 text-[#0071e3]" />
-              New Campaign
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-6">
-            <div>
-              <label className="text-sm font-bold text-gray-700 mb-2 block">Target Audience</label>
-              <select
-                value={promoAudience}
-                onChange={(e) => setPromoAudience(e.target.value)}
-                className="w-full h-12 bg-gray-50 border-none rounded-2xl px-4 text-sm font-medium focus:ring-2 focus:ring-[#0071e3]/20"
-              >
-                <option value="all">All Customers</option>
-                <option value="loyalty">Active Loyalty Members</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-sm font-bold text-gray-700 mb-2 block">Message</label>
-              <textarea
-                value={promoMessage}
-                onChange={(e) => setPromoMessage(e.target.value)}
-                placeholder="Type your promotional message here... Use {name} and {points} for personalization."
-                className="w-full h-32 bg-gray-50 border-none rounded-2xl p-4 text-sm font-medium focus:ring-2 focus:ring-[#0071e3]/20 resize-none"
-              />
-              <p className="text-xs text-gray-400 mt-2 font-medium">
-                Example: Hi {`{name}`}, we are running a 20% off sale! You have {`{points}`} points to redeem.
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500 font-medium">
+                Send a WhatsApp message to all customers with a valid phone number.
               </p>
+              
+              <div className="space-y-2">
+                <label className="text-[13px] font-bold text-gray-700">Message Content</label>
+                <textarea 
+                  className="w-full min-h-[120px] p-4 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all resize-none text-[15px]"
+                  placeholder="e.g. Special weekend offer! Get 20% off all shoes at OrbitPOS!"
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  disabled={isBroadcasting}
+                />
+              </div>
             </div>
 
-            <Button
-              onClick={handleSendPromotion}
-              disabled={sendingPromo}
-              className="w-full h-12 rounded-2xl font-bold bg-[#0071e3] hover:bg-[#0071e3]/90 text-white text-base"
-            >
-              {sendingPromo ? (
-                <>
-                  <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
-                  Sending Campaign...
-                </>
-              ) : (
-                'Send Campaign'
-              )}
-            </Button>
+            <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                className="rounded-xl h-11 font-bold"
+                onClick={() => setBroadcastModalOpen(false)}
+                disabled={isBroadcasting}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="rounded-xl h-11 font-bold bg-[#0071e3] hover:bg-[#0077ED] text-white shadow-sm px-6"
+                onClick={handleBroadcast}
+                disabled={isBroadcasting || !broadcastMessage.trim()}
+              >
+                {isBroadcasting ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Sending to All...
+                  </>
+                ) : (
+                  <>
+                    <Megaphone className="mr-2 h-4 w-4" />
+                    Send Broadcast
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
-
+      
       <ReceiptPrinter receiptData={receiptOrder} />
     </div>
   );

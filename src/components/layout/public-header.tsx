@@ -35,14 +35,14 @@ export function PublicHeader() {
       "fixed top-0 w-full z-50 transition-all duration-500",
       (scrolled || pathname !== '/' || isMobileMenuOpen) ? 'bg-white/90 backdrop-blur-xl border-b border-gray-100 py-3' : 'bg-transparent py-5'
     )}>
-      <div className="container mx-auto px-8 flex items-center justify-between">
+      <div className="container mx-auto px-4 sm:px-8 flex items-center justify-between">
         <Link className="flex items-center gap-2 group" href="/">
           <Image 
             src="/logo.png" 
             alt="OrbitPOS Logo" 
             width={300} 
             height={100} 
-            className="h-16 w-auto transition-transform group-hover:scale-105" 
+            className="h-12 md:h-16 w-auto transition-transform group-hover:scale-105" 
           />
         </Link>
         
@@ -75,7 +75,7 @@ export function PublicHeader() {
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-white border-b border-gray-100 p-8 animate-in slide-in-from-top-4 duration-300">
+        <div className="md:hidden absolute top-full left-0 w-full bg-white border-b border-gray-100 p-6 sm:p-8 animate-in slide-in-from-top-4 duration-300">
           <nav className="flex flex-col gap-6">
             {navLinks.map((link) => (
               <Link 

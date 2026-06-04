@@ -28,27 +28,27 @@ export default function LandingClient() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative w-full pt-40 pb-24 overflow-hidden bg-[#f5f5f7]">
+        <section className="relative w-full pt-32 md:pt-40 pb-16 md:pb-24 overflow-hidden bg-[#f5f5f7]">
           <div className="container px-8 mx-auto text-center">
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
-              <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-black mb-8 leading-[1.05]">
+              <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-black mb-6 md:mb-8 leading-[1.05]">
                 OrbitPOS Sales. <br />
                 <span className="text-[#0071e3]">Modern POS Software.</span>
               </h1>
               
-              <p className="mx-auto max-w-2xl text-[#86868b] text-xl md:text-2xl mb-12 font-medium leading-relaxed">
+              <p className="mx-auto max-w-2xl text-[#86868b] text-lg sm:text-xl md:text-2xl mb-10 md:mb-12 font-medium leading-relaxed">
                 Experience the world&apos;s most intuitive billing software and retail POS system. <br className="hidden md:block" />
                 Designed for inventory management, built for restaurant POS, and optimized for retail scale.
               </p>
               
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-20">
-                <Link href="/contact">
-                  <Button size="lg" className="glossy-button bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full px-12 h-14 text-lg font-semibold shadow-lg shadow-blue-500/10">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-16 md:mb-20">
+                <Link href="/contact" className="w-full sm:w-auto">
+                  <Button size="lg" className="w-full sm:w-auto glossy-button bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full px-8 md:px-12 h-14 text-lg font-semibold shadow-lg shadow-blue-500/10">
                     Schedule a Demo
                   </Button>
                 </Link>
-                <Link href="/login">
-                  <Button size="lg" variant="ghost" className="glossy-button rounded-full px-12 h-14 text-lg font-semibold hover:bg-gray-200/50">
+                <Link href="/login" className="w-full sm:w-auto">
+                  <Button size="lg" variant="ghost" className="w-full sm:w-auto glossy-button rounded-full px-8 md:px-12 h-14 text-lg font-semibold hover:bg-gray-200/50">
                     Sign In to Store
                   </Button>
                 </Link>
@@ -72,12 +72,12 @@ export default function LandingClient() {
         </section>
 
         {/* Feature Highlights */}
-        <section id="features" className="py-32 bg-white">
+        <section id="features" className="py-16 md:py-32 bg-white">
           <div className="container px-8 mx-auto">
-            <div className="max-w-4xl mx-auto mb-32 text-center md:text-left">
-              <h2 className="text-4xl md:text-6xl font-bold mb-10 tracking-tight">Everything about your <br /> business, at a glance.</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <p className="text-xl text-[#86868b] font-medium leading-relaxed">
+            <div className="max-w-4xl mx-auto mb-16 md:mb-32 text-center md:text-left">
+              <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-6 md:mb-10 tracking-tight">Everything about your <br className="hidden sm:block" /> business, at a glance.</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
+                <p className="text-lg md:text-xl text-[#86868b] font-medium leading-relaxed">
                   OrbitPOS Sales streamlines your entire operation from inventory management to automated payroll, so you can focus on what matters most—your customers.
                 </p>
                 <div className="space-y-4">
@@ -124,10 +124,10 @@ export default function LandingClient() {
         </section>
 
         {/* Dynamic SEO Block */}
-        <section className="py-20 bg-[#f5f5f7] border-t border-b border-gray-100">
+        <section className="py-16 md:py-20 bg-[#f5f5f7] border-t border-b border-gray-100">
           <div className="container px-8 mx-auto max-w-4xl text-center">
-            <h2 className="text-3xl font-bold mb-6 text-black">OrbitPOS Sales</h2>
-            <p className="text-lg text-[#86868b] leading-relaxed max-w-3xl mx-auto font-medium">
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 text-black">OrbitPOS Sales</h2>
+            <p className="text-base md:text-lg text-[#86868b] leading-relaxed max-w-3xl mx-auto font-medium">
               OrbitPOS Sales provides modern POS systems and retail billing software for businesses and restaurants. 
               Our comprehensive POS software, designed to streamline retail POS operations and optimize restaurant POS checkouts, 
               comes fully integrated with real-time inventory management, sales reporting, and customer loyalty programs. 
@@ -137,12 +137,12 @@ export default function LandingClient() {
         </section>
 
         {/* Product Showcase Marquee */}
-        <section className="pb-32 pt-32 overflow-hidden bg-white">
-          <div className="container px-8 mx-auto mb-16 text-center">
-            <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">Experience OrbitPOS</h2>
-            <p className="text-xl text-[#86868b] font-medium">Designed for the world&apos;s most ambitious retail brands.</p>
+        <section className="py-16 md:py-32 overflow-hidden bg-white">
+          <div className="container px-8 mx-auto mb-12 md:mb-16 text-center">
+            <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold tracking-tight mb-4 md:mb-6">Experience OrbitPOS</h2>
+            <p className="text-lg md:text-xl text-[#86868b] font-medium">Designed for the world&apos;s most ambitious retail brands.</p>
           </div>
-          <div className="flex animate-marquee gap-8 px-8">
+          <div className="flex animate-marquee gap-4 md:gap-8 px-4 md:px-8">
             {[
               '/images/cafe-lifestyle.png',
               '/images/dashboard-analytics.png',
@@ -151,7 +151,7 @@ export default function LandingClient() {
               '/images/dashboard-analytics.png',
               '/images/hero-branded.png',
             ].map((src, i) => (
-              <div key={i} className="relative w-[500px] md:w-[700px] aspect-video shrink-0 rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.08)] group">
+              <div key={i} className="relative w-[280px] sm:w-[400px] md:w-[700px] aspect-video shrink-0 rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.08)] group">
                 <Image 
                   src={src} 
                   alt={`OrbitPOS Screenshot ${i + 1}`}
@@ -170,12 +170,12 @@ export default function LandingClient() {
         </section>
 
         {/* Apple-style Banner */}
-        <section className="py-32 bg-[#000000] text-white">
+        <section className="py-16 md:py-32 bg-[#000000] text-white">
           <div className="container px-8 mx-auto text-center">
-            <h2 className="text-4xl md:text-6xl font-bold mb-8 tracking-tight">Ready to elevate your store?</h2>
-            <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto font-medium">Join thousands of retailers who have simplified their checkout experience with OrbitPOS.</p>
-            <Link href="/contact">
-              <Button size="lg" className="glossy-button bg-white text-black hover:bg-gray-100 rounded-full px-12 h-14 text-lg font-bold">
+            <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-6 md:mb-8 tracking-tight">Ready to elevate your store?</h2>
+            <p className="text-lg md:text-xl text-gray-400 mb-10 md:mb-12 max-w-2xl mx-auto font-medium">Join thousands of retailers who have simplified their checkout experience with OrbitPOS.</p>
+            <Link href="/contact" className="block sm:inline-block w-full sm:w-auto">
+              <Button size="lg" className="w-full sm:w-auto glossy-button bg-white text-black hover:bg-gray-100 rounded-full px-8 md:px-12 h-14 text-lg font-bold">
                 Contact our Sales Team
               </Button>
             </Link>

@@ -1361,13 +1361,18 @@ export default function POSPage() {
                   onChange={(e) => setNewName(e.target.value)}
                   required
                 />
-                <Input
-                  placeholder="Mobile Number"
-                  type="tel"
-                  className="h-11 bg-gray-50 border-transparent rounded-xl focus:bg-white font-bold text-[13px]"
-                  value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
-                />
+                <div className="flex bg-gray-50 rounded-xl overflow-hidden focus-within:bg-white focus-within:ring-2 focus-within:ring-black/5 border border-transparent focus-within:border-gray-200 transition-all">
+                  <div className="flex items-center justify-center px-4 bg-gray-100/50 border-r border-gray-100 text-gray-500 font-bold text-[13px]">
+                    +91
+                  </div>
+                  <Input
+                    placeholder="Mobile Number"
+                    type="tel"
+                    className="flex-1 h-11 bg-transparent border-none rounded-none font-bold text-[13px] focus-visible:ring-0 px-3"
+                    value={newPhone}
+                    onChange={(e) => setNewPhone(e.target.value)}
+                  />
+                </div>
                 <Input
                   placeholder="Email Address"
                   type="email"

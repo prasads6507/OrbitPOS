@@ -15,7 +15,9 @@ import {
   Award,
   ChevronRight,
   TrendingUp,
-  Clock
+  Clock,
+  Printer,
+  Receipt
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -31,6 +33,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
+import { ReceiptPrinter } from '@/components/pos/receipt-printer';
 
 export default function CustomersPage() {
   const { profile } = useAuthStore();
@@ -42,6 +45,7 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
   const [customerOrders, setCustomerOrders] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [receiptOrder, setReceiptOrder] = useState<any | null>(null);
 
   const storeToUse = activeStoreId || profile?.store_id;
 
@@ -115,6 +119,8 @@ export default function CustomersPage() {
           id,
           order_number,
           total_amount,
+          tax_amount,
+          discount_amount,
           payment_status,
           payment_method,
           created_at,
@@ -141,6 +147,87 @@ export default function CustomersPage() {
     setSelectedCustomer(customer);
     setCustomerOrders([]);
     fetchCustomerOrders(customer.id);
+  };
+
+  const handlePrintReceipt = (order: any) => {
+    const isRefunded = order.payment_status === 'refunded' || order.payment_status === 'partially_refunded';
+    const isSwap = order.payment_status === 'exchanged';
+    
+    const receiptItems = order.order_items?.map((item: any) => ({
+      name: item.products?.name,
+      quantity: item.quantity,
+      price: item.unit_price,
+      unit_price: item.unit_price,
+      variant_name: null,
+      serial_number: null,
+      is_return: isRefunded && item.refunded_quantity > 0,
+      is_swap: false
+    })) || [];
+    
+    const subtotal = order.total_amount - (order.tax_amount || 0) + (order.discount_amount || 0);
+
+    setReceiptOrder({
+      orderId: order.id,
+      date: format(parseISO(order.created_at), 'MMM d, yyyy h:mm a'),
+      method: order.payment_method,
+      items: receiptItems,
+      subtotal: subtotal,
+      tax: order.tax_amount || 0,
+      total: order.total_amount,
+      discount: order.discount_amount || 0,
+      cashierName: 'System',
+      type: isRefunded ? 'refund' : isSwap ? 'swap' : 'sale',
+      customerName: selectedCustomer?.full_name,
+      customerPhone: selectedCustomer?.phone,
+      customerEmail: selectedCustomer?.email,
+      pointsEarned: order.points_earned || 0,
+      pointsRedeemed: order.points_redeemed || 0,
+      pointsBalance: selectedCustomer?.loyalty_points || 0
+    });
+
+    setTimeout(() => {
+      const printContents = document.getElementById('printable-receipt')?.innerHTML;
+      if (printContents) {
+        const printWindow = window.open('', '_blank', 'width=350,height=600');
+        if (printWindow) {
+          printWindow.document.write(`
+            <html>
+              <head>
+                <title>Receipt</title>
+                <style>
+                  body { font-family: monospace; margin: 0; padding: 20px; font-size: 12px; }
+                  .hidden { display: block !important; }
+                  * { text-align: left; }
+                  .text-center { text-align: center; }
+                  .text-right { text-align: right; }
+                  .flex { display: flex; }
+                  .justify-between { justify-content: space-between; }
+                  .font-bold { font-weight: bold; }
+                  .border-b { border-bottom: 1px dashed #000; }
+                  .border-t { border-top: 1px dashed #000; }
+                  .border-dashed { border-style: dashed; }
+                  .pb-4 { padding-bottom: 16px; }
+                  .pt-2 { padding-top: 8px; }
+                  .mb-4 { margin-bottom: 16px; }
+                  .my-2 { margin-top: 8px; margin-bottom: 8px; }
+                  .uppercase { text-transform: uppercase; }
+                  .w-1\\/2 { width: 50%; }
+                  .w-1\\/4 { width: 25%; }
+                  @media print {
+                    @page { margin: 0; size: auto; }
+                    body { padding: 0; margin: 0; }
+                  }
+                </style>
+              </head>
+              <body onload="window.print(); setTimeout(() => { window.close(); }, 500);">
+                ${printContents}
+              </body>
+            </html>
+          `);
+          printWindow.document.close();
+        }
+      }
+    }, 100);
   };
 
   const filtered = customers.filter(c =>
@@ -388,9 +475,20 @@ export default function CustomersPage() {
                               {order.payment_status?.toUpperCase() || 'UNKNOWN'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right pr-6">
+                          <TableCell className="text-right pr-6 align-top">
                             <p className="font-black text-[14px] text-black">₹{order.total_amount?.toFixed(2)}</p>
                             {order.payment_method && <p className="text-[10px] font-bold text-gray-400 uppercase mt-0.5">{order.payment_method}</p>}
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="mt-2 h-7 px-2 text-[10px] font-bold text-gray-500 hover:text-black hover:bg-gray-100"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrintReceipt(order);
+                              }}
+                            >
+                              <Receipt className="h-3 w-3 mr-1" /> Receipt
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))
@@ -402,6 +500,7 @@ export default function CustomersPage() {
           </div>
         </DialogContent>
       </Dialog>
+      <ReceiptPrinter receiptData={receiptOrder} />
     </div>
   );
 }

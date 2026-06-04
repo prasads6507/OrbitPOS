@@ -37,10 +37,19 @@ export function GlobalSearch() {
       const searchTerm = `%${query}%`;
       
       try {
+        let orderPromise = Promise.resolve({ data: [] });
+        
+        // If query is exactly a UUID
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query)) {
+          orderPromise = supabase.from('orders').select('id, order_number').eq('store_id', activeStoreId).eq('id', query).limit(5) as any;
+        } else if (!isNaN(Number(query)) && query.trim() !== '') {
+          orderPromise = supabase.from('orders').select('id, order_number').eq('store_id', activeStoreId).eq('order_number', Number(query)).limit(5) as any;
+        }
+
         const [prodRes, custRes, orderRes] = await Promise.all([
           supabase.from('products').select('id, name, barcode').eq('store_id', activeStoreId).or(`name.ilike.${searchTerm},barcode.ilike.${searchTerm}`).limit(5),
           supabase.from('customers').select('id, full_name, phone').eq('store_id', activeStoreId).or(`full_name.ilike.${searchTerm},phone.ilike.${searchTerm}`).limit(5),
-          supabase.from('orders').select('id, receipt_number').eq('store_id', activeStoreId).ilike('receipt_number', searchTerm).limit(5)
+          orderPromise
         ]);
 
         setResults({
@@ -149,14 +158,14 @@ export function GlobalSearch() {
                     {results.orders.map(o => (
                       <button 
                         key={o.id}
-                        onClick={() => { setIsOpen(false); router.push(`/orders?receipt=${o.receipt_number}`); }}
+                        onClick={() => { setIsOpen(false); router.push(`/orders?search=${o.id}`); }}
                         className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-xl transition-colors text-left"
                       >
                         <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
                           <Receipt className="h-4 w-4" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-bold text-black truncate">{o.receipt_number}</div>
+                          <div className="text-sm font-bold text-black truncate">Order #{o.order_number || o.id.slice(0, 8)}</div>
                         </div>
                       </button>
                     ))}

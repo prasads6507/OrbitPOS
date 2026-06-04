@@ -87,10 +87,68 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (storeToUse) {
-      fetchOrders();
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchParam = urlParams.get('search');
+        if (searchParam) {
+          setSearch(searchParam);
+          fetchSpecificOrder(searchParam);
+        } else {
+          fetchOrders();
+        }
+      } else {
+        fetchOrders();
+      }
       fetchProducts();
     }
   }, [profile, activeStoreId, storeToUse, startDate, endDate]);
+
+  const fetchSpecificOrder = async (orderId: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          total_amount,
+          tax_amount,
+          discount_amount,
+          payment_status,
+          payment_method,
+          created_at,
+          refunded_amount,
+          points_earned,
+          points_redeemed,
+          cashier:profiles!cashier_id ( full_name ),
+          customer:customers!customer_id ( full_name, email, phone, loyalty_points ),
+          order_items (
+            id,
+            quantity,
+            refunded_quantity,
+            total_price,
+            unit_price,
+            variant_id,
+            serial_number,
+            created_at,
+            products ( name, price, sku ),
+            product_variants ( model_name, sku, barcode )
+          )
+        `)
+        .eq('store_id', storeToUse)
+        .eq('id', orderId);
+
+      if (error) throw error;
+      setOrders(data || []);
+      if (data && data.length > 0) {
+        setSelectedOrder(data[0]);
+      }
+      setCurrentPage(1);
+    } catch (err) {
+      console.error('Error fetching specific order:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchProducts = async () => {
     if (!storeToUse) return;

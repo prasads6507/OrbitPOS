@@ -34,6 +34,7 @@ const navItems = [
   { name: 'Orders History', href: '/orders', icon: ClipboardList, roles: ['admin', 'cashier', 'employee'] },
   { name: 'Products', href: '/admin/products', icon: Package, roles: ['admin', 'cashier', 'employee'] },
   { name: 'Inventory', href: '/admin/inventory', icon: Package, roles: ['admin', 'cashier', 'employee'] },
+  { name: 'Customers', href: '/admin/customers', icon: Users, roles: ['admin', 'cashier', 'employee'] },
   { name: 'Returns', href: '/admin/returns', icon: Undo2, roles: ['admin'] },
   { name: 'Stock Transfer', href: '/admin/inventory/transfer', icon: Send, roles: ['admin'] },
   { name: 'Vendor Invoices', href: '/admin/vendors', icon: FileText, roles: ['admin'] },

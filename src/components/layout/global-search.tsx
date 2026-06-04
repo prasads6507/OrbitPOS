@@ -135,7 +135,7 @@ export function GlobalSearch() {
                     {results.customers.map(c => (
                       <button 
                         key={c.id}
-                        onClick={() => { setIsOpen(false); router.push(`/pos?customer=${c.id}`); }}
+                        onClick={() => { setIsOpen(false); router.push(`/admin/customers?search=${c.id}`); }}
                         className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-xl transition-colors text-left"
                       >
                         <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">

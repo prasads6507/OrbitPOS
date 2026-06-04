@@ -875,7 +875,7 @@ export default function POSPage() {
                     </div>
                   )}
                 </div>
-              ))}
+              ))
                 )}
               </div>
             </div>
@@ -1052,8 +1052,7 @@ export default function POSPage() {
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
-                    </div>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>

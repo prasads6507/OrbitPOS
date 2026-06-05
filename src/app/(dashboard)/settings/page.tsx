@@ -14,7 +14,11 @@ import {
   Camera,
   Save,
   Key,
-  Printer
+  Printer,
+  Send,
+  Server,
+  RefreshCw,
+  Share2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +28,7 @@ import { toast } from 'sonner';
 
 import { useActiveStore } from '@/store/useActiveStore';
 
-type SettingsTab = 'profile' | 'store';
+type SettingsTab = 'profile' | 'store' | 'integrations';
 
 export default function SettingsPage() {
   const { profile, fetchProfile } = useAuthStore();
@@ -51,6 +55,17 @@ export default function SettingsPage() {
     razorpay_key_secret: '',
   });
 
+  const [emailSettings, setEmailSettings] = useState({
+    email_provider: 'resend',
+    sender_email: '',
+    email_api_key: '',
+    smtp_host: '',
+    smtp_port: '',
+    smtp_user: '',
+    smtp_pass: '',
+  });
+  const [savingIntegrations, setSavingIntegrations] = useState(false);
+
   const storeToUse = activeStoreId || profile?.store_id;
 
   useEffect(() => {
@@ -63,6 +78,7 @@ export default function SettingsPage() {
 
       if (profile.role === 'admin' && storeToUse) {
         fetchStoreData(storeToUse);
+        fetchIntegrationSettings(storeToUse);
       }
     }
   }, [profile, activeStoreId, storeToUse]);
@@ -93,6 +109,28 @@ export default function SettingsPage() {
         razorpay_key_id: data.razorpay_key_id ?? '',
         razorpay_key_secret: data.razorpay_key_secret ?? '',
       });
+    }
+  };
+
+  const fetchIntegrationSettings = async (storeId: string) => {
+    try {
+      const res = await fetch(`/api/settings/email?storeId=${storeId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && !data.error) {
+          setEmailSettings({
+            email_provider: data.email_provider || 'resend',
+            sender_email: data.sender_email || '',
+            email_api_key: data.email_api_key || '',
+            smtp_host: data.smtp_host || '',
+            smtp_port: data.smtp_port || '',
+            smtp_user: data.smtp_user || '',
+            smtp_pass: data.smtp_pass || '',
+          });
+        }
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -153,6 +191,25 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveIntegrations = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!storeToUse) return;
+    setSavingIntegrations(true);
+    try {
+      const res = await fetch('/api/settings/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeId: storeToUse, ...emailSettings })
+      });
+      if (!res.ok) throw new Error('Failed to save integrations');
+      toast.success('Integration settings saved successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update integrations');
+    } finally {
+      setSavingIntegrations(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-700">
       <div>
@@ -175,6 +232,14 @@ export default function SettingsPage() {
               label="Store Config" 
               active={activeTab === 'store'} 
               onClick={() => setActiveTab('store')} 
+            />
+          )}
+          {profile?.role === 'admin' && (
+            <SettingsNavItem 
+              icon={Share2} 
+              label="Integrations" 
+              active={activeTab === 'integrations'} 
+              onClick={() => setActiveTab('integrations')} 
             />
           )}
         </div>
@@ -444,6 +509,141 @@ export default function SettingsPage() {
                     Use your <span className="font-bold underline">Test Mode Keys</span> first to verify the integration. Once you are ready for real payments, replace them with your <span className="font-bold underline">Live Mode Keys</span>.
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'integrations' && profile?.role === 'admin' && (
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden animate-in slide-in-from-right-4 duration-500">
+              <div className="p-10 border-b border-gray-50 bg-[#fbfbfd]">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[#0071e3] rounded-xl flex items-center justify-center text-white">
+                    <Share2 className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-black">Integrations & Broadcasts</h3>
+                    <p className="text-[13px] text-gray-400 font-medium">Configure Email and WhatsApp sending capabilities.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-10 space-y-8">
+                <form onSubmit={handleSaveIntegrations} className="space-y-6">
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <Label className="text-[13px] font-bold text-gray-400 uppercase tracking-widest ml-1 block">Email Broadcast Configuration</Label>
+                      <p className="text-[12px] text-gray-400 font-medium ml-1 mt-0.5">Set up custom email sending for your CRM promotions.</p>
+                    </div>
+
+                    <div className="bg-[#f5f5f7] p-6 rounded-3xl space-y-4">
+                      <Label htmlFor="sender_email" className="text-[11px] font-black text-gray-400 uppercase tracking-wider block">Sender Email Address</Label>
+                      <Input 
+                        id="sender_email"
+                        value={emailSettings.sender_email}
+                        onChange={e => setEmailSettings({...emailSettings, sender_email: e.target.value})}
+                        placeholder="e.g. promotions@yourstore.com"
+                        className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
+                      />
+                      <span className="text-[10px] text-gray-400 font-medium block">This is the email address your customers will see as the sender.</span>
+                    </div>
+
+                    <div className="bg-[#f5f5f7] p-6 rounded-3xl space-y-4">
+                      <Label className="text-[11px] font-black text-gray-400 uppercase tracking-wider block">Email Provider</Label>
+                      <div className="flex gap-4">
+                        <div 
+                          onClick={() => setEmailSettings({...emailSettings, email_provider: 'resend'})}
+                          className={`flex-1 p-4 rounded-2xl border-2 cursor-pointer transition-all bg-white ${emailSettings.email_provider === 'resend' ? 'border-[#0071e3] ring-4 ring-[#0071e3]/10' : 'border-gray-100 hover:border-gray-200'}`}
+                        >
+                          <Send className={`h-5 w-5 mb-2 ${emailSettings.email_provider === 'resend' ? 'text-[#0071e3]' : 'text-gray-400'}`} />
+                          <h3 className="font-bold text-sm text-black">Resend</h3>
+                          <p className="text-[11px] text-gray-400 mt-1">Modern API. Recommended for deliverability.</p>
+                        </div>
+                        <div 
+                          onClick={() => setEmailSettings({...emailSettings, email_provider: 'smtp'})}
+                          className={`flex-1 p-4 rounded-2xl border-2 cursor-pointer transition-all bg-white ${emailSettings.email_provider === 'smtp' ? 'border-[#0071e3] ring-4 ring-[#0071e3]/10' : 'border-gray-100 hover:border-gray-200'}`}
+                        >
+                          <Server className={`h-5 w-5 mb-2 ${emailSettings.email_provider === 'smtp' ? 'text-[#0071e3]' : 'text-gray-400'}`} />
+                          <h3 className="font-bold text-sm text-black">Custom SMTP</h3>
+                          <p className="text-[11px] text-gray-400 mt-1">Use your own mail server or Gmail App Password.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {emailSettings.email_provider === 'resend' && (
+                      <div className="bg-[#f5f5f7] p-6 rounded-3xl space-y-4 animate-in fade-in slide-in-from-top-2">
+                        <Label htmlFor="resend_api_key" className="text-[11px] font-black text-gray-400 uppercase tracking-wider block">Resend API Key</Label>
+                        <Input 
+                          id="resend_api_key"
+                          type="password"
+                          value={emailSettings.email_api_key}
+                          onChange={e => setEmailSettings({...emailSettings, email_api_key: e.target.value})}
+                          placeholder="re_..."
+                          className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
+                        />
+                      </div>
+                    )}
+
+                    {emailSettings.email_provider === 'smtp' && (
+                      <div className="bg-[#f5f5f7] p-6 rounded-3xl space-y-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold text-gray-500 uppercase ml-1">SMTP Host</Label>
+                            <Input 
+                              value={emailSettings.smtp_host}
+                              onChange={e => setEmailSettings({...emailSettings, smtp_host: e.target.value})}
+                              placeholder="smtp.gmail.com"
+                              className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold text-gray-500 uppercase ml-1">SMTP Port</Label>
+                            <Input 
+                              value={emailSettings.smtp_port}
+                              onChange={e => setEmailSettings({...emailSettings, smtp_port: e.target.value})}
+                              placeholder="465"
+                              className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold text-gray-500 uppercase ml-1">SMTP Username</Label>
+                            <Input 
+                              value={emailSettings.smtp_user}
+                              onChange={e => setEmailSettings({...emailSettings, smtp_user: e.target.value})}
+                              placeholder="your@email.com"
+                              className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold text-gray-500 uppercase ml-1">SMTP Password</Label>
+                            <Input 
+                              type="password"
+                              value={emailSettings.smtp_pass}
+                              onChange={e => setEmailSettings({...emailSettings, smtp_pass: e.target.value})}
+                              placeholder="••••••••••••••••"
+                              className="h-12 bg-white border border-gray-100 rounded-xl focus:border-[#0071e3] transition-all font-bold text-[14px]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+
+                  <div className="pt-6 border-t border-gray-50 flex justify-end">
+                    <Button 
+                      type="submit"
+                      disabled={savingIntegrations}
+                      className="bg-black text-white px-8 h-14 rounded-2xl font-bold shadow-xl shadow-black/10 hover:bg-gray-800 transition-all"
+                    >
+                      {savingIntegrations ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+                      Save Integrations
+                    </Button>
+                  </div>
+                </form>
+
               </div>
             </div>
           )}

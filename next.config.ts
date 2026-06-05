@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverExternalPackages: ['whatsapp-web.js'],
 };
 
 export default nextConfig;

@@ -58,6 +58,11 @@ export default function CustomersPage() {
   const [waStatus, setWaStatus] = useState('DISCONNECTED');
   const [waQrCode, setWaQrCode] = useState<string | null>(null);
 
+  // Edit Customer
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ full_name: '', email: '', phone: '' });
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
 
@@ -164,12 +169,19 @@ export default function CustomersPage() {
 
   const handleViewCustomer = (customer: any) => {
     setSelectedCustomer(customer);
+    setEditForm({
+      full_name: customer.full_name || '',
+      email: customer.email || '',
+      phone: customer.phone || ''
+    });
+    setIsEditing(false);
     setCustomerOrders([]);
     fetchCustomerOrders(customer.id);
   };
 
   const handleCloseCustomerModal = () => {
     setSelectedCustomer(null);
+    setIsEditing(false);
     setSearch('');
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
@@ -177,6 +189,35 @@ export default function CustomersPage() {
         url.searchParams.delete('search');
         window.history.replaceState({}, '', url.toString());
       }
+    }
+  };
+
+  const handleUpdateCustomer = async () => {
+    if (!selectedCustomer) return;
+    setIsUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({
+          full_name: editForm.full_name,
+          email: editForm.email,
+          phone: editForm.phone
+        })
+        .eq('id', selectedCustomer.id);
+      
+      if (error) throw error;
+      
+      toast.success('Customer profile updated successfully');
+      setIsEditing(false);
+      
+      // Update local state
+      const updatedCustomer = { ...selectedCustomer, ...editForm };
+      setSelectedCustomer(updatedCustomer);
+      setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c));
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update customer');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -549,25 +590,64 @@ export default function CustomersPage() {
         <DialogContent className="sm:max-w-3xl w-full p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
           <div className="bg-gradient-to-b from-gray-50 to-white max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="p-8 border-b border-gray-100 flex items-start justify-between">
-              <div className="flex items-center gap-5">
-                <div className="w-20 h-20 rounded-[1.5rem] bg-black text-white flex items-center justify-center font-black text-3xl shadow-lg">
+              <div className="flex items-center gap-5 w-full">
+                <div className="w-20 h-20 rounded-[1.5rem] bg-black text-white flex items-center justify-center font-black text-3xl shadow-lg shrink-0">
                   {selectedCustomer?.full_name?.charAt(0)?.toUpperCase() || '?'}
                 </div>
-                <div>
-                  <h2 className="text-2xl font-black text-black">{selectedCustomer?.full_name}</h2>
-                  <div className="flex items-center gap-4 mt-2">
-                    {selectedCustomer?.phone && (
-                      <div className="flex items-center text-[13px] font-medium text-gray-500 bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm">
-                        <Phone className="h-3.5 w-3.5 mr-2 opacity-50" /> {selectedCustomer?.phone}
-                      </div>
-                    )}
-                    {selectedCustomer?.email && (
-                      <div className="flex items-center text-[13px] font-medium text-gray-500 bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm">
-                        <Mail className="h-3.5 w-3.5 mr-2 opacity-50" /> {selectedCustomer?.email}
-                      </div>
-                    )}
+                {isEditing ? (
+                  <div className="flex-1 space-y-3">
+                    <Input 
+                      value={editForm.full_name}
+                      onChange={(e) => setEditForm({...editForm, full_name: e.target.value})}
+                      placeholder="Full Name"
+                      className="font-bold text-lg h-10 w-full max-w-sm border-gray-200"
+                    />
+                    <div className="flex items-center gap-3">
+                      <Input 
+                        value={editForm.phone}
+                        onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                        placeholder="Phone Number"
+                        className="h-9 w-full max-w-[180px] border-gray-200"
+                      />
+                      <Input 
+                        value={editForm.email}
+                        onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                        placeholder="Email Address"
+                        className="h-9 w-full max-w-[220px] border-gray-200"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button size="sm" onClick={handleUpdateCustomer} disabled={isUpdating} className="bg-black hover:bg-gray-800 text-white rounded-xl h-8 px-4 font-bold text-xs shadow-sm">
+                        {isUpdating ? <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                        Save Changes
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)} disabled={isUpdating} className="rounded-xl h-8 px-4 font-bold text-xs text-gray-500 hover:text-black hover:bg-gray-100">
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-2xl font-black text-black">{selectedCustomer?.full_name}</h2>
+                      <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)} className="text-xs text-[#0071e3] font-bold hover:bg-blue-50 h-7 rounded-lg px-2">
+                        Edit Profile
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-4 mt-2">
+                      {selectedCustomer?.phone && (
+                        <div className="flex items-center text-[13px] font-medium text-gray-500 bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm">
+                          <Phone className="h-3.5 w-3.5 mr-2 opacity-50" /> {selectedCustomer?.phone}
+                        </div>
+                      )}
+                      {selectedCustomer?.email && (
+                        <div className="flex items-center text-[13px] font-medium text-gray-500 bg-white px-3 py-1.5 rounded-full border border-gray-100 shadow-sm">
+                          <Mail className="h-3.5 w-3.5 mr-2 opacity-50" /> {selectedCustomer?.email}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
